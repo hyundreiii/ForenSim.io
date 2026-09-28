@@ -1,0 +1,6 @@
+{
+  "name": "Cordillera Forensic Simulation Lab — Baguio City",
+  "description": "Interactive 3D forensic science and human decomposition educational simulation laboratory set in a controlled indoor research facility in Baguio City, Philippines.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
