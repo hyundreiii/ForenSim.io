@@ -8,6 +8,7 @@ import {
   StudentObservation,
 } from '../data/simulationData';
 import { SimulationMetrics } from '../utils/simulationMath';
+import { exportForensicDossierPdf } from '../utils/pdfExporter';
 import { ObservationPanel } from './ObservationPanel';
 import {
   CheckCircle2,
@@ -135,49 +136,31 @@ export const ReportsAndScenarioSection: React.FC<
 
   const completedStepsCount = scenarioSteps.filter((s) => s.completed).length;
 
+  const totalQuizQuestions = COMPREHENSIVE_QUIZ_QUESTIONS.length;
+  const answeredQuizCount = Object.keys(quizAnswers).length;
   const correctQuizCount = COMPREHENSIVE_QUIZ_QUESTIONS.reduce((acc, q) => {
     return acc + (quizAnswers[q.id] === q.correctIndex ? 1 : 0);
   }, 0);
+  const quizPercent = Math.round((correctQuizCount / totalQuizQuestions) * 100);
 
-  const handleExportJsonReport = () => {
-    const payload = {
-      reportTitle: 'Baguio Indoor Simulation Case — Final Forensic Laboratory Dossier',
-      facility: 'Cordillera Forensic Simulation Lab, Baguio City, Philippines (1,540m ASL)',
-      researcher: studentName,
-      generatedAt: new Date().toISOString(),
-      activeSimulationState: {
-        simulationDay: metrics.simDay,
-        accumulatedDegreeDays: metrics.add,
-        decompositionStage: metrics.currentStage.title,
-        massRetentionPercent: metrics.massRetentionPercent,
-        headspaceVocPpm: metrics.vocPpm,
-        environmentalParameters: params,
-      },
-      caseConclusions: {
-        estimatedPmiWindow: caseConclusionPmi,
-        governingEnvironmentalFactors: casePrimaryFactor,
-      },
-      completionMetrics: {
-        scenarioMilestonesCompleted: `${completedStepsCount} / 8`,
-        instrumentsInspected: inspectedObjectIds.length,
-        evidenceLogsAnalyzed: examinedEvidenceIds.length,
-        modulesCompleted: completedModuleIds.length,
-        quizScore: `${correctQuizCount} / ${COMPREHENSIVE_QUIZ_QUESTIONS.length}`,
-      },
-      studentObservations: observations,
-    };
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: 'application/json',
+  const handleExportPdfReport = () => {
+    exportForensicDossierPdf({
+      studentName,
+      params,
+      metrics,
+      caseConclusionPmi,
+      casePrimaryFactor,
+      completedStepsCount,
+      inspectedObjectCount: inspectedObjectIds.length,
+      examinedEvidenceCount: examinedEvidenceIds.length,
+      completedModuleCount: completedModuleIds.length,
+      observations,
+      quizAnswers,
     });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `baguio-forensic-simulation-report-day-${metrics.simDay.toFixed(0)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setExportMessage('Simulation Dossier exported as structured JSON.');
-    setTimeout(() => setExportMessage(null), 3000);
+    setExportMessage(
+      'Official PDF Dossier (with Quiz Score & Correct Answer Key) downloaded.'
+    );
+    setTimeout(() => setExportMessage(null), 4000);
   };
 
   return (
@@ -351,11 +334,11 @@ export const ReportsAndScenarioSection: React.FC<
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={handleExportJsonReport}
-              className="px-3.5 py-2 rounded-lg bg-cyan-500 text-slate-950 text-xs font-semibold hover:bg-cyan-400 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+              onClick={handleExportPdfReport}
+              className="px-3.5 py-2 rounded-lg bg-cyan-500 text-slate-950 text-xs font-semibold hover:bg-cyan-400 transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-xs"
             >
               <Download className="w-3.5 h-3.5" />
-              Export JSON Dossier
+              Export / Save PDF Dossier
             </button>
             <button
               type="button"
@@ -574,15 +557,148 @@ export const ReportsAndScenarioSection: React.FC<
                 isLightMode ? 'text-sky-700' : 'text-sky-400'
               }`}
             >
-              {correctQuizCount} / {COMPREHENSIVE_QUIZ_QUESTIONS.length} Correct
+              {correctQuizCount} / {totalQuizQuestions} ({quizPercent}%)
             </div>
             <div
               className={`text-[11px] mt-1 ${
                 isLightMode ? 'text-slate-600' : 'text-slate-400'
               }`}
             >
-              {completedModuleIds.length} / {LEARNING_MODULES.length} Modules Studied
+              {answeredQuizCount}/{totalQuizQuestions} Answered · {completedModuleIds.length}/{LEARNING_MODULES.length} Modules
             </div>
+          </div>
+        </div>
+
+        {/* Competency Quiz Score & Correct Answers Breakdown inside Dossier */}
+        <div
+          className={`pt-5 border-t space-y-4 ${
+            isLightMode ? 'border-slate-200' : 'border-slate-800/70'
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <span
+                className={`text-xs font-mono font-semibold ${
+                  isLightMode ? 'text-cyan-700' : 'text-cyan-400'
+                }`}
+              >
+                ASSESSMENT SCORE & ANSWER KEY VERIFICATION
+              </span>
+              <h4 className="text-base font-semibold mt-0.5">
+                Competency Quiz Results & Correct Answers ({correctQuizCount} /{' '}
+                {totalQuizQuestions} Correct · {quizPercent}%)
+              </h4>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigateTab('quiz')}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-semibold transition-colors ${
+                isLightMode
+                  ? 'border-slate-300 bg-slate-50 text-cyan-700 hover:border-cyan-600'
+                  : 'border-slate-700 bg-slate-900 text-cyan-400 hover:border-cyan-400'
+              }`}
+            >
+              Open Interactive Quiz Hub →
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {COMPREHENSIVE_QUIZ_QUESTIONS.map((q, idx) => {
+              const pickedIdx = quizAnswers[q.id];
+              const isAnswered = pickedIdx !== undefined;
+              const isCorrect = pickedIdx === q.correctIndex;
+              return (
+                <div
+                  key={q.id}
+                  className={`p-4 rounded-xl border text-xs space-y-2 ${
+                    isCorrect
+                      ? isLightMode
+                        ? 'bg-emerald-50/50 border-emerald-300'
+                        : 'bg-emerald-950/15 border-emerald-500/40'
+                      : isAnswered
+                        ? isLightMode
+                          ? 'bg-rose-50/50 border-rose-300'
+                          : 'bg-rose-950/15 border-rose-500/40'
+                        : isLightMode
+                          ? 'bg-slate-50 border-slate-200'
+                          : 'bg-slate-900/70 border-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-mono text-[11px]">
+                    <span
+                      className={`font-semibold ${
+                        isLightMode ? 'text-cyan-700' : 'text-cyan-400'
+                      }`}
+                    >
+                      QUESTION #{idx + 1}
+                    </span>
+                    <span
+                      className={`font-semibold ${
+                        isCorrect
+                          ? isLightMode
+                            ? 'text-emerald-700'
+                            : 'text-emerald-400'
+                          : isAnswered
+                            ? isLightMode
+                              ? 'text-rose-700'
+                              : 'text-rose-400'
+                            : isLightMode
+                              ? 'text-amber-700'
+                              : 'text-amber-400'
+                      }`}
+                    >
+                      {isCorrect
+                        ? '✓ CORRECT (+1 pt)'
+                        : isAnswered
+                          ? '✖ INCORRECT (0 pt)'
+                          : '○ NOT ANSWERED'}
+                    </span>
+                  </div>
+
+                  <div className="font-semibold leading-snug">{q.question}</div>
+
+                  <div className="space-y-1 pt-1 font-mono text-[11px]">
+                    <div
+                      className={
+                        isCorrect
+                          ? isLightMode
+                            ? 'text-emerald-800 font-semibold'
+                            : 'text-emerald-300 font-semibold'
+                          : isAnswered
+                            ? isLightMode
+                              ? 'text-rose-800 font-semibold'
+                              : 'text-rose-300 font-semibold'
+                            : isLightMode
+                              ? 'text-slate-500'
+                              : 'text-slate-400'
+                      }
+                    >
+                      Your Answer:{' '}
+                      {isAnswered ? q.options[pickedIdx] : 'Not yet selected'}
+                    </div>
+                    <div
+                      className={
+                        isLightMode
+                          ? 'text-emerald-700 font-semibold'
+                          : 'text-emerald-400 font-semibold'
+                      }
+                    >
+                      ✓ Correct Answer: {q.options[q.correctIndex]}
+                    </div>
+                  </div>
+
+                  <p
+                    className={`text-[11px] leading-relaxed pt-1 border-t ${
+                      isLightMode
+                        ? 'border-slate-200/80 text-slate-600'
+                        : 'border-slate-800/80 text-slate-400'
+                    }`}
+                  >
+                    <strong>Explanation:</strong> {q.explanation}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

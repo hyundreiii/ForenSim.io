@@ -314,20 +314,29 @@ export const LearningModulesSection: React.FC<LearningModulesSectionProps> = ({
                   Verify Conceptual Mastery Before Proceeding
                 </h4>
               </div>
-              {savedScore && (
-                <span
-                  className={`text-xs font-mono font-semibold ${
-                    isLightMode ? 'text-emerald-700' : 'text-emerald-400'
-                  }`}
-                >
-                  Recorded Score: {savedScore.score} / {savedScore.total}
-                </span>
-              )}
+              <span
+                className={`text-xs font-mono font-semibold px-2.5 py-1 rounded-md border ${
+                  isLightMode
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                    : 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
+                }`}
+              >
+                Score:{' '}
+                {savedScore
+                  ? `${savedScore.score} / ${savedScore.total}`
+                  : `${activeModule.questions.reduce(
+                      (acc, q) =>
+                        acc + (selectedAnswers[q.id] === q.correctIndex ? 1 : 0),
+                      0
+                    )} / ${activeModule.questions.length}`}
+              </span>
             </div>
 
             <div className="space-y-5 mt-4">
               {activeModule.questions.map((q, qIdx) => {
                 const picked = selectedAnswers[q.id];
+                const isAnswered = picked !== undefined;
+                const showFeedback = isAnswered || isQuizSubmitted;
                 return (
                   <div key={q.id} className="space-y-2">
                     {q.scenarioContext && (
@@ -352,7 +361,7 @@ export const LearningModulesSection: React.FC<LearningModulesSectionProps> = ({
                           ? 'bg-white border-slate-300 text-slate-800 hover:border-slate-400'
                           : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700';
 
-                        if (isQuizSubmitted) {
+                        if (showFeedback) {
                           if (isCorrect) {
                             borderStyle = isLightMode
                               ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-semibold'
@@ -376,7 +385,7 @@ export const LearningModulesSection: React.FC<LearningModulesSectionProps> = ({
                             className={`w-full px-3.5 py-2.5 rounded-lg border text-left text-xs transition-colors flex items-center justify-between ${borderStyle}`}
                           >
                             <span>{opt}</span>
-                            {isQuizSubmitted && isCorrect && (
+                            {showFeedback && isCorrect && (
                               <span
                                 className={`font-mono text-[11px] shrink-0 ml-2 font-semibold ${
                                   isLightMode
@@ -384,7 +393,16 @@ export const LearningModulesSection: React.FC<LearningModulesSectionProps> = ({
                                     : 'text-emerald-400'
                                 }`}
                               >
-                                ✓ Correct
+                                ✓ Correct Answer
+                              </span>
+                            )}
+                            {showFeedback && isPicked && !isCorrect && (
+                              <span
+                                className={`font-mono text-[11px] shrink-0 ml-2 font-semibold ${
+                                  isLightMode ? 'text-rose-700' : 'text-rose-400'
+                                }`}
+                              >
+                                ✖ Your Choice
                               </span>
                             )}
                           </button>
@@ -392,22 +410,31 @@ export const LearningModulesSection: React.FC<LearningModulesSectionProps> = ({
                       })}
                     </div>
 
-                    {isQuizSubmitted && (
+                    {showFeedback && (
                       <div
-                        className={`p-3 rounded-lg border text-xs ${
+                        className={`p-3 rounded-lg border text-xs space-y-1 ${
                           isLightMode
                             ? 'bg-white border-slate-200 text-slate-700'
                             : 'bg-slate-900/90 border-slate-800 text-slate-300'
                         }`}
                       >
-                        <strong
-                          className={`font-mono ${
-                            isLightMode ? 'text-cyan-700' : 'text-cyan-400'
+                        <div
+                          className={`font-mono font-semibold ${
+                            isLightMode ? 'text-emerald-700' : 'text-emerald-400'
                           }`}
                         >
-                          Scientific Explanation:{' '}
-                        </strong>
-                        {q.explanation}
+                          ✓ Correct Answer: {q.options[q.correctIndex]}
+                        </div>
+                        <div>
+                          <strong
+                            className={`font-mono ${
+                              isLightMode ? 'text-cyan-700' : 'text-cyan-400'
+                            }`}
+                          >
+                            Scientific Explanation:{' '}
+                          </strong>
+                          {q.explanation}
+                        </div>
                       </div>
                     )}
                   </div>

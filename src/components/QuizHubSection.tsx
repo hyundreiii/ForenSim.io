@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { jsPDF } from 'jspdf';
 import { COMPREHENSIVE_QUIZ_QUESTIONS, QuizQuestion } from '../data/simulationData';
-import { Award, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Award, CheckCircle2, Download, RotateCcw } from 'lucide-react';
 
 interface QuizHubSectionProps {
   quizAnswers: Record<string, number>;
@@ -30,6 +31,7 @@ export const QuizHubSection: React.FC<QuizHubSectionProps> = ({
   const correctCount = COMPREHENSIVE_QUIZ_QUESTIONS.reduce((acc, q) => {
     return acc + (quizAnswers[q.id] === q.correctIndex ? 1 : 0);
   }, 0);
+  const scorePercent = Math.round((correctCount / totalQuestions) * 100);
 
   const formatQuestionTypeLabel = (type: QuizQuestion['type']) => {
     switch (type) {
@@ -44,9 +46,127 @@ export const QuizHubSection: React.FC<QuizHubSectionProps> = ({
     }
   };
 
+  const handleExportQuizPdf = () => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 16;
+
+    doc.setFillColor(11, 17, 32);
+    doc.rect(0, 0, pageWidth, 32, 'F');
+    doc.setTextColor(34, 211, 238);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(
+      'FORENSIM.IO · FORENSIC SCIENCE COMPETENCY EXAMINATION',
+      margin,
+      11
+    );
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.text(
+      `Quiz Assessment Results & Answer Key — Score: ${correctCount}/${totalQuestions} (${scorePercent}%)`,
+      margin,
+      19
+    );
+    doc.setTextColor(148, 163, 184);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.text(
+      `Answered: ${answeredCount}/${totalQuestions} Questions   |   Correct: ${correctCount}   |   Generated: ${new Date().toLocaleString()}`,
+      margin,
+      26
+    );
+
+    y = 40;
+
+    COMPREHENSIVE_QUIZ_QUESTIONS.forEach((q, idx) => {
+      const pickedIdx = quizAnswers[q.id];
+      const hasAnswered = pickedIdx !== undefined;
+      const isCorrect = pickedIdx === q.correctIndex;
+
+      const qLines = doc.splitTextToSize(
+        `Item #${idx + 1} (${formatQuestionTypeLabel(q.type)}): ${q.question}`,
+        contentWidth - 8
+      );
+      const yourAnsLines = doc.splitTextToSize(
+        `Your Answer: ${hasAnswered ? q.options[pickedIdx] : 'Not Answered'} [${hasAnswered ? (isCorrect ? 'CORRECT' : 'INCORRECT') : 'UNANSWERED'}]`,
+        contentWidth - 8
+      );
+      const corrAnsLines = doc.splitTextToSize(
+        `Correct Answer: ${q.options[q.correctIndex]}`,
+        contentWidth - 8
+      );
+      const expLines = doc.splitTextToSize(
+        `Forensic Explanation: ${q.explanation}`,
+        contentWidth - 8
+      );
+
+      const boxH =
+        8 +
+        (qLines.length +
+          yourAnsLines.length +
+          corrAnsLines.length +
+          expLines.length) *
+          4.1;
+      if (y + boxH > pageHeight - 14) {
+        doc.addPage();
+        y = 16;
+      }
+
+      doc.setDrawColor(
+        isCorrect ? 167 : 203,
+        isCorrect ? 243 : 213,
+        isCorrect ? 208 : 225
+      );
+      doc.setFillColor(
+        isCorrect ? 240 : 248,
+        isCorrect ? 253 : 250,
+        isCorrect ? 244 : 252
+      );
+      doc.roundedRect(margin, y, contentWidth, boxH, 1.5, 1.5, 'FD');
+
+      let cy = y + 5.5;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(qLines, margin + 3, cy);
+      cy += qLines.length * 4.1;
+
+      doc.setFontSize(8);
+      if (isCorrect) {
+        doc.setTextColor(5, 150, 105);
+      } else if (hasAnswered) {
+        doc.setTextColor(225, 29, 72);
+      } else {
+        doc.setTextColor(100, 116, 139);
+      }
+      doc.text(yourAnsLines, margin + 3, cy);
+      cy += yourAnsLines.length * 4.1;
+
+      doc.setTextColor(4, 120, 87);
+      doc.text(corrAnsLines, margin + 3, cy);
+      cy += corrAnsLines.length * 4.1;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 85);
+      doc.text(expLines, margin + 3, cy);
+
+      y += boxH + 3.5;
+    });
+
+    doc.save(`ForenSim-Quiz-Results-${correctCount}-of-${totalQuestions}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header & Score Summary */}
+      {/* Header & Always-Visible Live Score Summary */}
       <div
         className={`rounded-xl border p-6 flex flex-wrap items-center justify-between gap-4 ${
           isLightMode
@@ -69,31 +189,31 @@ export const QuizHubSection: React.FC<QuizHubSectionProps> = ({
 
         <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
           <div className={isLightMode ? 'text-slate-600' : 'text-slate-400'}>
-            Progress:{' '}
+            Answered:{' '}
             <strong
               className={isLightMode ? 'text-cyan-700' : 'text-cyan-400'}
             >
-              {answeredCount} / {totalQuestions} Answered
+              {answeredCount} / {totalQuestions}
             </strong>
           </div>
-          {quizSubmitted && (
-            <>
-              <span aria-hidden="true" className="text-slate-400">
-                ·
-              </span>
-              <div className={isLightMode ? 'text-slate-600' : 'text-slate-400'}>
-                Final Score:{' '}
-                <strong
-                  className={`text-sm ${
-                    isLightMode ? 'text-emerald-700' : 'text-emerald-400'
-                  }`}
-                >
-                  {correctCount} / {totalQuestions} (
-                  {Math.round((correctCount / totalQuestions) * 100)}%)
-                </strong>
-              </div>
-            </>
-          )}
+          <span aria-hidden="true" className="text-slate-400">
+            ·
+          </span>
+          <div
+            className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 ${
+              isLightMode
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                : 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
+            }`}
+          >
+            <Award className="w-4 h-4 shrink-0" />
+            <span>
+              Score:{' '}
+              <strong className="text-sm">
+                {correctCount} / {totalQuestions} ({scorePercent}%)
+              </strong>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -130,13 +250,26 @@ export const QuizHubSection: React.FC<QuizHubSectionProps> = ({
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={onSubmitFullQuiz}
-            className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-xs font-semibold hover:bg-cyan-400 transition-colors whitespace-nowrap"
+            className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-xs font-semibold hover:bg-cyan-400 transition-colors whitespace-nowrap flex items-center gap-1.5"
           >
-            Grade Assessment & View Explanations
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Show All Correct Answers & Grade Quiz
+          </button>
+          <button
+            type="button"
+            onClick={handleExportQuizPdf}
+            className={`px-3.5 py-2 rounded-lg border text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+              isLightMode
+                ? 'border-cyan-600 bg-cyan-50 text-cyan-800 hover:bg-cyan-100'
+                : 'border-cyan-500/50 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25'
+            }`}
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export / Save Quiz PDF
           </button>
           <button
             type="button"
@@ -157,6 +290,8 @@ export const QuizHubSection: React.FC<QuizHubSectionProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {filteredQuestions.map((q, idx) => {
           const picked = quizAnswers[q.id];
+          const isAnswered = picked !== undefined;
+          const showAnswerKey = isAnswered || quizSubmitted;
           const isCorrect = picked === q.correctIndex;
 
           return (
@@ -183,19 +318,27 @@ export const QuizHubSection: React.FC<QuizHubSectionProps> = ({
                   >
                     ITEM #{idx + 1} · {formatQuestionTypeLabel(q.type)}
                   </span>
-                  {quizSubmitted && (
+                  {showAnswerKey && (
                     <span
                       className={
                         isCorrect
                           ? isLightMode
                             ? 'text-emerald-700 font-semibold'
                             : 'text-emerald-400 font-semibold'
-                          : isLightMode
-                            ? 'text-rose-700 font-semibold'
-                            : 'text-rose-400 font-semibold'
+                          : isAnswered
+                            ? isLightMode
+                              ? 'text-rose-700 font-semibold'
+                              : 'text-rose-400 font-semibold'
+                            : isLightMode
+                              ? 'text-amber-700 font-semibold'
+                              : 'text-amber-400 font-semibold'
                       }
                     >
-                      {isCorrect ? '● CORRECT' : '✖ INCORRECT'}
+                      {isCorrect
+                        ? '● CORRECT (+1 pt)'
+                        : isAnswered
+                          ? '✖ INCORRECT (0 pt)'
+                          : '○ ANSWER KEY REVEALED'}
                     </span>
                   )}
                 </div>
@@ -225,7 +368,7 @@ export const QuizHubSection: React.FC<QuizHubSectionProps> = ({
                       ? 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-400'
                       : 'bg-slate-900/75 border-slate-800 text-slate-300 hover:border-slate-700';
 
-                    if (quizSubmitted) {
+                    if (showAnswerKey) {
                       if (isThisRight) {
                         optionStyle = isLightMode
                           ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-semibold'
@@ -249,7 +392,7 @@ export const QuizHubSection: React.FC<QuizHubSectionProps> = ({
                         className={`w-full px-3.5 py-2.5 rounded-lg border text-left text-xs transition-colors flex items-center justify-between ${optionStyle}`}
                       >
                         <span>{opt}</span>
-                        {quizSubmitted && isThisRight && (
+                        {showAnswerKey && isThisRight && (
                           <span
                             className={`font-mono text-[11px] ml-2 shrink-0 font-semibold ${
                               isLightMode
@@ -260,30 +403,52 @@ export const QuizHubSection: React.FC<QuizHubSectionProps> = ({
                             ✓ Correct Answer
                           </span>
                         )}
+                        {showAnswerKey && isThisPicked && !isThisRight && (
+                          <span
+                            className={`font-mono text-[11px] ml-2 shrink-0 font-semibold ${
+                              isLightMode ? 'text-rose-700' : 'text-rose-400'
+                            }`}
+                          >
+                            ✖ Your Choice
+                          </span>
+                        )}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {quizSubmitted && (
+              {showAnswerKey && (
                 <div
-                  className={`mt-4 pt-3 border-t text-xs ${
+                  className={`mt-4 pt-3 border-t text-xs space-y-1.5 ${
                     isLightMode
                       ? 'border-slate-200 text-slate-700'
                       : 'border-slate-800/80 text-slate-300'
                   }`}
                 >
-                  <strong
-                    className={`font-mono ${
-                      isLightMode ? 'text-cyan-700' : 'text-cyan-400'
+                  <div
+                    className={`font-mono font-semibold ${
+                      isLightMode ? 'text-emerald-700' : 'text-emerald-400'
                     }`}
                   >
-                    Forensic Explanation:{' '}
-                  </strong>
-                  <span className={isLightMode ? 'text-slate-700' : 'text-slate-300'}>
-                    {q.explanation}
-                  </span>
+                    ✓ Correct Answer: {q.options[q.correctIndex]}
+                  </div>
+                  <div>
+                    <strong
+                      className={`font-mono ${
+                        isLightMode ? 'text-cyan-700' : 'text-cyan-400'
+                      }`}
+                    >
+                      Forensic Explanation:{' '}
+                    </strong>
+                    <span
+                      className={
+                        isLightMode ? 'text-slate-700' : 'text-slate-300'
+                      }
+                    >
+                      {q.explanation}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
