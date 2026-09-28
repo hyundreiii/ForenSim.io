@@ -14,12 +14,19 @@ import {
   ANATOMICAL_REGIONS,
   AnatomicalRegionId,
   createForensicSubject3DGroup,
+  createSurgicalEnvMap,
   ForensicSubjectModel,
   StructuralLayerMode,
 } from './ForensicSubjectModel';
 import {
   Camera,
   Crosshair,
+  GripHorizontal,
+  GripVertical,
+  Maximize2,
+  Minimize2,
+  PanelRightClose,
+  PanelRightOpen,
   RotateCcw,
   Scan,
   Sliders,
@@ -203,6 +210,181 @@ function createInstrumentScreenTexture(
   return tex;
 }
 
+// Helper: Procedural Baguio 1,540m Cordillera Pine Highland & Fog Panorama for North Observation Window (WIN-09)
+function createBaguioWindowViewTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 768;
+  canvas.height = 384;
+  const ctx = canvas.getContext('2d')!;
+
+  // Cool Cordillera highland sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, 384);
+  skyGrad.addColorStop(0, '#0f172a');
+  skyGrad.addColorStop(0.45, '#1e3a5f');
+  skyGrad.addColorStop(0.78, '#64748b');
+  skyGrad.addColorStop(1, '#94a3b8');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, 768, 384);
+
+  // Distant Cordillera mountain ridges
+  const drawRidge = (
+    baseY: number,
+    amp: number,
+    freq: number,
+    phase: number,
+    color: string
+  ) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, 384);
+    for (let x = 0; x <= 768; x += 8) {
+      const y =
+        baseY +
+        Math.sin(x * freq + phase) * amp +
+        Math.cos(x * freq * 2.3 + phase) * (amp * 0.42);
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(768, 384);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  drawRidge(175, 28, 0.009, 0.5, '#1e293b');
+  drawRidge(215, 22, 0.012, 2.1, '#0f292e');
+  drawRidge(255, 18, 0.015, 4.0, '#0c2224');
+
+  // Highland valley advection fog layer
+  const fogGrad = ctx.createLinearGradient(0, 185, 0, 290);
+  fogGrad.addColorStop(0, 'rgba(226, 232, 240, 0)');
+  fogGrad.addColorStop(0.5, 'rgba(203, 213, 225, 0.36)');
+  fogGrad.addColorStop(1, 'rgba(226, 232, 240, 0)');
+  ctx.fillStyle = fogGrad;
+  ctx.fillRect(0, 185, 768, 105);
+
+  // Benguet Pine (Pinus insularis) silhouettes along the foreground ridge
+  for (let p = 0; p < 34; p++) {
+    const px = 12 + p * 22.5 + ((p * 17) % 9);
+    const treeBaseY = 384;
+    const treeTopY = 175 + ((p * 29) % 75);
+    ctx.strokeStyle = '#061417';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(px, treeBaseY);
+    ctx.lineTo(px, treeTopY);
+    ctx.stroke();
+
+    ctx.fillStyle = p % 2 === 0 ? '#082022' : '#0b292b';
+    for (let tier = 0; tier < 5; tier++) {
+      const ty = treeTopY + tier * 17;
+      const tw = 10 + tier * 5.5;
+      ctx.beginPath();
+      ctx.moveTo(px, ty - 8);
+      ctx.lineTo(px - tw, ty + 12);
+      ctx.lineTo(px + tw, ty + 12);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// Helper: 3D Floating Node Callout Badge Sprite Texture (`SEN-01` .. `SPC-10`)
+function createNodeCalloutTexture(
+  code: string,
+  shortName: string,
+  isSelected: boolean
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 320;
+  canvas.height = 80;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.clearRect(0, 0, 320, 80);
+  ctx.fillStyle = isSelected
+    ? 'rgba(6, 182, 212, 0.96)'
+    : 'rgba(9, 14, 26, 0.9)';
+  ctx.strokeStyle = isSelected ? '#ffffff' : '#22d3ee';
+  ctx.lineWidth = 4;
+
+  ctx.beginPath();
+  ctx.roundRect(6, 6, 308, 60, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  // Bottom pointer triangle
+  ctx.beginPath();
+  ctx.moveTo(148, 66);
+  ctx.lineTo(160, 78);
+  ctx.lineTo(172, 66);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = isSelected ? '#020617' : '#22d3ee';
+  ctx.font = 'bold 21px monospace';
+  ctx.fillText(code, 18, 34);
+
+  ctx.fillStyle = isSelected ? '#0f172a' : '#f1f5f9';
+  ctx.font = 'bold 16px sans-serif';
+  const label =
+    shortName.length > 22 ? `${shortName.slice(0, 21)}…` : shortName;
+  ctx.fillText(label, 18, 55);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// Helper: Numbered Yellow Forensic Evidence A-Frame Tent Card Texture (`01`..`04`)
+function createEvidenceTentTexture(numStr: string): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#facc15';
+  ctx.fillRect(0, 0, 128, 128);
+
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(4, 4, 120, 120);
+
+  // Top photogrammetric crosshair circle
+  ctx.beginPath();
+  ctx.arc(64, 24, 9, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(52, 24);
+  ctx.lineTo(76, 24);
+  ctx.moveTo(64, 12);
+  ctx.lineTo(64, 36);
+  ctx.stroke();
+
+  // Bold Evidence Number
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 54px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(numStr, 64, 84);
+
+  // Bottom metric scale ticks
+  ctx.fillRect(10, 104, 108, 16);
+  ctx.fillStyle = '#facc15';
+  for (let i = 0; i < 6; i++) {
+    if (i % 2 === 0) {
+      ctx.fillRect(12 + i * 18, 106, 18, 12);
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
   params,
   metrics,
@@ -229,11 +411,92 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
   const [cameraAngle, setCameraAngle] = useState<number>(0.46);
   const [cameraPitch, setCameraPitch] = useState<number>(0.5);
   const [cameraZoom, setCameraZoom] = useState<number>(3.95);
+  const [cameraTargetX, setCameraTargetX] = useState<number>(0);
   const [cameraTargetY, setCameraTargetY] = useState<number>(0.92);
+  const [cameraTargetZ, setCameraTargetZ] = useState<number>(0);
   const [autoOrbit, setAutoOrbit] = useState<boolean>(false);
   const [hoveredObjectName, setHoveredObjectName] = useState<string | null>(
     null
   );
+
+  // Responsive & Resizable Workspace State
+  const splitContainerRef = useRef<HTMLDivElement | null>(null);
+  const [splitRatio, setSplitRatio] = useState<number>(58); // Left panel % on lg+ screens (36% to 78%)
+  const [stageHeight, setStageHeight] = useState<number>(520); // 3D viewport height in px (320px to 880px)
+  const [isInspectorCollapsed, setIsInspectorCollapsed] =
+    useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isDraggingSplit, setIsDraggingSplit] = useState<boolean>(false);
+  const [isDraggingHeight, setIsDraggingHeight] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsFullscreen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isFullscreen]);
+
+  const startSplitResize = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const container = splitContainerRef.current;
+    if (!container) return;
+    setIsDraggingSplit(true);
+
+    const onMove = (ev: MouseEvent | TouchEvent) => {
+      const clientX =
+        'touches' in ev
+          ? ev.touches[0]?.clientX ?? 0
+          : (ev as MouseEvent).clientX;
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const pct = ((clientX - rect.left) / rect.width) * 100;
+      setSplitRatio(Math.max(36, Math.min(78, Math.round(pct * 10) / 10)));
+    };
+
+    const onEnd = () => {
+      setIsDraggingSplit(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+  };
+
+  const startStageHeightResize = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const startY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const startH = stageHeight;
+    setIsDraggingHeight(true);
+
+    const onMove = (ev: MouseEvent | TouchEvent) => {
+      const clientY =
+        'touches' in ev
+          ? ev.touches[0]?.clientY ?? startY
+          : (ev as MouseEvent).clientY;
+      const nextH = Math.max(320, Math.min(880, startH + (clientY - startY)));
+      setStageHeight(nextH);
+    };
+
+    const onEnd = () => {
+      setIsDraggingHeight(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+  };
 
   const stateRef = useRef({
     params,
@@ -246,7 +509,9 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
     cameraAngle,
     cameraPitch,
     cameraZoom,
+    cameraTargetX,
     cameraTargetY,
+    cameraTargetZ,
     autoOrbit,
     isDragging: false,
     lastMouseX: 0,
@@ -266,7 +531,9 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
       cameraAngle,
       cameraPitch,
       cameraZoom,
+      cameraTargetX,
       cameraTargetY,
+      cameraTargetZ,
       autoOrbit,
     };
   }, [
@@ -280,9 +547,99 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
     cameraAngle,
     cameraPitch,
     cameraZoom,
+    cameraTargetX,
     cameraTargetY,
+    cameraTargetZ,
     autoOrbit,
   ]);
+
+  // Smoothly aims and zooms the 3D camera directly at any selected Laboratory Node & Instrument
+  const focusCameraOnObject = (objectId: string) => {
+    setAutoOrbit(false);
+    switch (objectId) {
+      case 'env-sensor': // SEN-01 North-West Multi-Gas Telemetry Mast
+        setCameraAngle(0.54);
+        setCameraPitch(0.24);
+        setCameraZoom(2.25);
+        setCameraTargetX(-2.45);
+        setCameraTargetY(1.55);
+        setCameraTargetZ(-2.25);
+        break;
+      case 'exam-table': // TBL-02 Stainless Steel Examination Table & Scale
+        setCameraAngle(0.46);
+        setCameraPitch(0.42);
+        setCameraZoom(3.35);
+        setCameraTargetX(0.0);
+        setCameraTargetY(0.72);
+        setCameraTargetZ(0.0);
+        break;
+      case 'evidence-markers': // EVD-03 Photogrammetric Tent Markers #01-#04
+        setCameraAngle(0.32);
+        setCameraPitch(0.5);
+        setCameraZoom(2.15);
+        setCameraTargetX(-0.15);
+        setCameraTargetY(0.88);
+        setCameraTargetZ(0.15);
+        break;
+      case 'research-computer': // WKS-04 Dual-Monitor LIMS Workstation
+        setCameraAngle(-0.88);
+        setCameraPitch(0.28);
+        setCameraZoom(2.35);
+        setCameraTargetX(2.35);
+        setCameraTargetY(0.96);
+        setCameraTargetZ(0.85);
+        break;
+      case 'camera': // CAM-05 Ceiling Gantry LWIR Thermal & Optical Rig
+        setCameraAngle(0.38);
+        setCameraPitch(0.14);
+        setCameraZoom(2.25);
+        setCameraTargetX(0.0);
+        setCameraTargetY(2.46);
+        setCameraTargetZ(0.0);
+        break;
+      case 'ventilation': // VNT-06 Upper West Laminar HEPA Filtration Unit
+        setCameraAngle(1.02);
+        setCameraPitch(0.18);
+        setCameraZoom(2.25);
+        setCameraTargetX(-3.18);
+        setCameraTargetY(2.38);
+        setCameraTargetZ(-1.1);
+        break;
+      case 'temp-monitor': // TMP-07 West Wall NIST Thermistor Console
+        setCameraAngle(1.18);
+        setCameraPitch(0.18);
+        setCameraZoom(1.85);
+        setCameraTargetX(-3.35);
+        setCameraTargetY(1.48);
+        setCameraTargetZ(0.45);
+        break;
+      case 'humidity-monitor': // HUM-08 North-East Wall Hygrometer Console
+        setCameraAngle(-0.22);
+        setCameraPitch(0.18);
+        setCameraZoom(1.95);
+        setCameraTargetX(2.25);
+        setCameraTargetY(1.48);
+        setCameraTargetZ(-2.85);
+        break;
+      case 'window': // WIN-09 North Observation Window (Baguio 1,540m)
+        setCameraAngle(0.0);
+        setCameraPitch(0.16);
+        setCameraZoom(3.1);
+        setCameraTargetX(0.0);
+        setCameraTargetY(1.82);
+        setCameraTargetZ(-2.85);
+        break;
+      case 'specimen-area': // SPC-10 3D Human Subject
+      default:
+        setCameraAngle(0.38);
+        setCameraPitch(0.48);
+        setCameraZoom(2.9);
+        setCameraTargetX(-0.04);
+        setCameraTargetY(0.92);
+        setCameraTargetZ(0.0);
+        break;
+    }
+  };
 
   const applyCameraPreset = (
     preset:
@@ -295,41 +652,33 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
   ) => {
     setAutoOrbit(false);
     if (preset === 'body-closeup') {
-      setCameraAngle(0.38);
-      setCameraPitch(0.48);
-      setCameraZoom(3.05);
-      setCameraTargetY(0.92);
+      focusCameraOnObject('specimen-area');
       const spc = ROOM_OBJECTS.find((o) => o.id === 'specimen-area');
       if (spc) onSelectObject(spc);
     } else if (preset === 'overhead-autopsy') {
       setCameraAngle(0.01);
       setCameraPitch(1.32);
-      setCameraZoom(3.4);
+      setCameraZoom(3.3);
+      setCameraTargetX(0);
       setCameraTargetY(0.88);
+      setCameraTargetZ(0);
     } else if (preset === 'full-room') {
-      setCameraAngle(0.58);
-      setCameraPitch(0.46);
-      setCameraZoom(6.2);
-      setCameraTargetY(1.0);
+      setCameraAngle(0.56);
+      setCameraPitch(0.44);
+      setCameraZoom(6.1);
+      setCameraTargetX(0);
+      setCameraTargetY(1.05);
+      setCameraTargetZ(0);
     } else if (preset === 'window-context') {
-      setCameraAngle(0.0);
-      setCameraPitch(0.24);
-      setCameraZoom(5.0);
-      setCameraTargetY(1.35);
+      focusCameraOnObject('window');
       const win = ROOM_OBJECTS.find((o) => o.id === 'window');
       if (win) onSelectObject(win);
     } else if (preset === 'sensor-wall') {
-      setCameraAngle(0.85);
-      setCameraPitch(0.36);
-      setCameraZoom(5.1);
-      setCameraTargetY(1.25);
+      focusCameraOnObject('env-sensor');
       const sen = ROOM_OBJECTS.find((o) => o.id === 'env-sensor');
       if (sen) onSelectObject(sen);
     } else if (preset === 'workstation') {
-      setCameraAngle(-0.62);
-      setCameraPitch(0.38);
-      setCameraZoom(4.9);
-      setCameraTargetY(1.05);
+      focusCameraOnObject('research-computer');
       const wks = ROOM_OBJECTS.find((o) => o.id === 'research-computer');
       if (wks) onSelectObject(wks);
     }
@@ -371,6 +720,7 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(isLightMode ? 0xdbeafe : 0x060a12);
     scene.fog = new THREE.FogExp2(isLightMode ? 0xdbeafe : 0x060a12, 0.028);
+    scene.environment = createSurgicalEnvMap(renderer);
 
     const camera = new THREE.PerspectiveCamera(
       42,
@@ -546,17 +896,28 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
     wallClockBoard.position.set(0, 2.82, -3.09);
     scene.add(wallClockBoard);
 
-    // Interactive Clickable Meshes Registry
+    // Interactive Clickable Meshes, Highlight Rings & 3D Floating Node Callout Badges
     const clickableMeshes: THREE.Object3D[] = [];
     const objectHighlightRings: Record<string, THREE.Mesh> = {};
+    const objectCalloutSprites: Record<
+      string,
+      {
+        sprite: THREE.Sprite;
+        code: string;
+        shortName: string;
+        baseY: number;
+        isSelRendered: boolean;
+      }
+    > = {};
 
     const createHighlightRing = (
       id: string,
       ringPos: [number, number, number],
-      ringRadius = 0.26
+      ringRadius = 0.26,
+      calloutPos?: [number, number, number]
     ) => {
       const ringGeo = new THREE.RingGeometry(
-        ringRadius * 0.82,
+        ringRadius * 0.8,
         ringRadius,
         36
       );
@@ -571,13 +932,43 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
       ring.rotation.x = -Math.PI / 2;
       scene.add(ring);
       objectHighlightRings[id] = ring;
+
+      // Create 3D Floating Callout Badge directly above the instrument
+      const objMeta = ROOM_OBJECTS.find((o) => o.id === id);
+      if (objMeta) {
+        const badgePos = calloutPos || [
+          ringPos[0],
+          ringPos[1] + 0.45,
+          ringPos[2],
+        ];
+        const spriteMat = new THREE.SpriteMaterial({
+          map: createNodeCalloutTexture(objMeta.code, objMeta.name, false),
+          transparent: true,
+          depthTest: false,
+        });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.position.set(badgePos[0], badgePos[1], badgePos[2]);
+        sprite.scale.set(0.56, 0.135, 1);
+        sprite.renderOrder = 10;
+        sprite.userData = { objectId: id };
+        scene.add(sprite);
+        clickableMeshes.push(sprite);
+        objectCalloutSprites[id] = {
+          sprite,
+          code: objMeta.code,
+          shortName: objMeta.name,
+          baseY: badgePos[1],
+          isSelRendered: false,
+        };
+      }
     };
 
     const registerInteractiveGroup = (
       id: string,
       group: THREE.Group,
       ringPos: [number, number, number],
-      ringRadius = 0.26
+      ringRadius = 0.26,
+      calloutPos?: [number, number, number]
     ) => {
       group.userData = { objectId: id };
       group.traverse((child) => {
@@ -589,7 +980,7 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
         }
       });
       scene.add(group);
-      createHighlightRing(id, ringPos, ringRadius);
+      createHighlightRing(id, ringPos, ringRadius, calloutPos);
     };
 
     // =========================================================================
@@ -598,48 +989,79 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
     const windowGroup = new THREE.Group();
     const frameMat = new THREE.MeshStandardMaterial({
       color: 0x334155,
-      metalness: 0.72,
-      roughness: 0.25,
+      metalness: 0.78,
+      roughness: 0.22,
     });
     const winFrame = new THREE.Mesh(
-      new THREE.BoxGeometry(2.88, 1.52, 0.18),
+      new THREE.BoxGeometry(2.94, 1.56, 0.18),
       frameMat
     );
     winFrame.position.set(0, 1.78, -3.12);
     windowGroup.add(winFrame);
 
-    const glassMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(
-      GENERATED_ASSETS.windowView,
-      (tex) => {
-        glassMat.map = tex;
-        glassMat.color.setHex(0xffffff);
-        glassMat.needsUpdate = true;
-      },
-      undefined,
-      () => {
-        glassMat.color.setHex(0x38bdf8);
-      }
+    // Stainless steel interior window sill ledge
+    const winSill = new THREE.Mesh(
+      new THREE.BoxGeometry(3.04, 0.05, 0.26),
+      new THREE.MeshStandardMaterial({
+        color: 0x94a3b8,
+        metalness: 0.82,
+        roughness: 0.2,
+      })
     );
+    winSill.position.set(0, 1.0, -3.04);
+    windowGroup.add(winSill);
+
+    // Procedural Baguio 1,540m Pine Highland Panorama (always renders crisply)
+    const baguioPanoramaTex = createBaguioWindowViewTexture();
+    const glassMat = new THREE.MeshBasicMaterial({
+      map: baguioPanoramaTex,
+      color: 0xffffff,
+    });
     const winPane = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.7, 1.34),
+      new THREE.PlaneGeometry(2.74, 1.38),
       glassMat
     );
-    winPane.position.set(0, 1.78, -3.01);
+    winPane.position.set(0, 1.78, -3.02);
     windowGroup.add(winPane);
 
-    // Vertical aluminum window mullions & condensation glass sheen
+    // Double-glazed acoustic glass specular reflection layer
+    const glassSheen = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.74, 1.38),
+      new THREE.MeshPhysicalMaterial({
+        color: 0xe0f2fe,
+        transparent: true,
+        opacity: 0.16,
+        roughness: 0.05,
+        metalness: 0.1,
+        clearcoat: 1.0,
+      })
+    );
+    glassSheen.position.set(0, 1.78, -3.0);
+    windowGroup.add(glassSheen);
+
+    // Vertical & horizontal aluminum window mullions
     [-0.9, 0, 0.9].forEach((mx) => {
       const mullion = new THREE.Mesh(
-        new THREE.BoxGeometry(0.035, 1.36, 0.04),
+        new THREE.BoxGeometry(0.038, 1.4, 0.05),
         frameMat
       );
-      mullion.position.set(mx, 1.78, -3.0);
+      mullion.position.set(mx, 1.78, -2.99);
       windowGroup.add(mullion);
     });
+    const transMullion = new THREE.Mesh(
+      new THREE.BoxGeometry(2.76, 0.032, 0.045),
+      frameMat
+    );
+    transMullion.position.set(0, 2.15, -2.99);
+    windowGroup.add(transMullion);
 
-    registerInteractiveGroup('window', windowGroup, [0, 0.02, -2.55]);
+    registerInteractiveGroup(
+      'window',
+      windowGroup,
+      [0, 1.03, -2.92],
+      0.22,
+      [0, 2.34, -2.9]
+    );
 
     // =========================================================================
     // 2. TBL-02: Stainless Steel Forensic Examination Table (`exam-table`)
@@ -812,98 +1234,367 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
     const subjectController = createForensicSubject3DGroup(false);
     examTableGroup.add(subjectController.rootGroup);
 
-    registerInteractiveGroup('exam-table', examTableGroup, [0, 0.02, 0], 0.42);
-    createHighlightRing('specimen-area', [-0.12, 0.845, 0], 0.34);
+    registerInteractiveGroup(
+      'exam-table',
+      examTableGroup,
+      [0, 0.02, 0],
+      0.42,
+      [1.05, 1.24, 0.35]
+    );
+    createHighlightRing(
+      'specimen-area',
+      [-0.12, 0.845, 0],
+      0.34,
+      [-0.12, 1.34, 0]
+    );
 
     // =========================================================================
-    // 4. EVD-03: Forensic Evidence Markers (#01–#04)
+    // 4. EVD-03: Numbered A-Frame Forensic Evidence Markers (#01–#04) & ABFO L-Scales
     // =========================================================================
     const markersGroup = new THREE.Group();
-    const markerMat = new THREE.MeshStandardMaterial({
-      color: 0xfacc15,
-      roughness: 0.22,
-    });
-    const markerPositions: [number, number, number][] = [
-      [-0.96, 0.89, 0.36],
-      [-0.35, 0.89, -0.38],
-      [0.25, 0.89, 0.37],
-      [0.88, 0.89, -0.35],
+    const markerSpecs: {
+      pos: [number, number, number];
+      rotY: number;
+      num: string;
+    }[] = [
+      { pos: [-0.94, 0.842, 0.35], rotY: 0.25, num: '01' },
+      { pos: [-0.34, 0.842, -0.36], rotY: -0.35, num: '02' },
+      { pos: [0.24, 0.842, 0.36], rotY: 0.18, num: '03' },
+      { pos: [0.84, 0.842, -0.34], rotY: -0.22, num: '04' },
     ];
-    markerPositions.forEach(([mx, my, mz]) => {
-      const tent = new THREE.Mesh(
-        new THREE.ConeGeometry(0.055, 0.11, 4),
-        markerMat
+
+    markerSpecs.forEach(({ pos, rotY, num }) => {
+      const tentCardGroup = new THREE.Group();
+      tentCardGroup.position.set(pos[0], pos[1], pos[2]);
+      tentCardGroup.rotation.y = rotY;
+
+      const cardTex = createEvidenceTentTexture(num);
+      const cardMat = new THREE.MeshStandardMaterial({
+        map: cardTex,
+        roughness: 0.28,
+        metalness: 0.05,
+        side: THREE.DoubleSide,
+      });
+
+      // Front sloped A-frame face
+      const frontLeaf = new THREE.Mesh(
+        new THREE.BoxGeometry(0.082, 0.095, 0.004),
+        cardMat
       );
-      tent.position.set(mx, my, mz);
-      tent.castShadow = true;
-      markersGroup.add(tent);
+      frontLeaf.position.set(0, 0.044, 0.022);
+      frontLeaf.rotation.x = -0.44;
+      frontLeaf.castShadow = true;
+      tentCardGroup.add(frontLeaf);
+
+      // Back sloped A-frame face
+      const backLeaf = new THREE.Mesh(
+        new THREE.BoxGeometry(0.082, 0.095, 0.004),
+        cardMat
+      );
+      backLeaf.position.set(0, 0.044, -0.022);
+      backLeaf.rotation.x = 0.44;
+      backLeaf.castShadow = true;
+      tentCardGroup.add(backLeaf);
+
+      // Adjacent ABFO No. 2 Photomacrographic L-Scale Ruler on Table Surface
+      const scaleMat = new THREE.MeshStandardMaterial({
+        color: 0xf8fafc,
+        roughness: 0.3,
+      });
+      const armA = new THREE.Mesh(
+        new THREE.BoxGeometry(0.09, 0.003, 0.018),
+        scaleMat
+      );
+      armA.position.set(0.075, 0.002, 0.02);
+      tentCardGroup.add(armA);
+      const armB = new THREE.Mesh(
+        new THREE.BoxGeometry(0.018, 0.003, 0.09),
+        scaleMat
+      );
+      armB.position.set(0.039, 0.002, -0.016);
+      tentCardGroup.add(armB);
+
+      markersGroup.add(tentCardGroup);
     });
     registerInteractiveGroup(
       'evidence-markers',
       markersGroup,
-      [-0.96, 0.85, 0.36],
-      0.18
+      [-0.94, 0.846, 0.35],
+      0.16,
+      [-0.94, 1.08, 0.35]
     );
 
     // =========================================================================
-    // 5. SEN-01: Environmental Sensor Array (North-West Telemetry Mast)
+    // 5. SEN-01: Multi-Channel Environmental Sensor Array (North-West Telemetry Mast)
     // =========================================================================
     const sensorGroup = new THREE.Group();
-    const mast = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.045, 0.065, 2.18, 16),
+    const senX = -2.55;
+    const senZ = -2.35;
+
+    // Heavy 3-leg cast-steel floor tripod base + leveling pads
+    const tripodHub = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.09, 0.12, 0.14, 16),
       darkSteelMat
     );
-    mast.position.set(-2.55, 1.09, -2.35);
+    tripodHub.position.set(senX, 0.07, senZ);
+    sensorGroup.add(tripodHub);
+
+    for (let legIdx = 0; legIdx < 3; legIdx++) {
+      const ang = (legIdx * Math.PI * 2) / 3 + 0.4;
+      const legStrut = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, 0.035, 0.045),
+        darkSteelMat
+      );
+      legStrut.position.set(
+        senX + Math.cos(ang) * 0.18,
+        0.04,
+        senZ + Math.sin(ang) * 0.18
+      );
+      legStrut.rotation.y = -ang;
+      sensorGroup.add(legStrut);
+    }
+
+    // Brushed stainless steel vertical telemetry mast
+    const mast = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.036, 0.048, 2.24, 20),
+      brushedSteelMat
+    );
+    mast.position.set(senX, 1.15, senZ);
+    mast.castShadow = true;
     sensorGroup.add(mast);
+
+    // Multi-Gas Aspirated Sensor Manifold Enclosure (VOC / CO2 / H2S / Barometer)
     const sensorHead = new THREE.Mesh(
-      new THREE.BoxGeometry(0.46, 0.36, 0.28),
+      new THREE.BoxGeometry(0.48, 0.44, 0.28),
+      new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        metalness: 0.65,
+        roughness: 0.24,
+      })
+    );
+    sensorHead.position.set(senX, 1.56, senZ);
+    sensorHead.castShadow = true;
+    sensorGroup.add(sensorHead);
+
+    // Cyan anodized protective instrument bezel around manifold
+    const sensorTrim = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.46, 0.24),
       new THREE.MeshStandardMaterial({
         color: 0x0284c7,
-        metalness: 0.5,
+        metalness: 0.55,
         roughness: 0.22,
       })
     );
-    sensorHead.position.set(-2.55, 2.05, -2.35);
-    sensorGroup.add(sensorHead);
-    // Anemometer cups & barometric antenna
-    const antenna = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.008, 0.008, 0.35, 8),
+    sensorTrim.position.set(senX, 1.56, senZ - 0.01);
+    sensorGroup.add(sensorTrim);
+
+    // Live OLED Telemetry Screen on SEN-01 Manifold
+    const senScreenMat = new THREE.MeshBasicMaterial({
+      map: createInstrumentScreenTexture(
+        'SEN-01 MULTI-GAS',
+        `${metrics.vocPpm} ppm`,
+        `845.2 hPa · CO2/H2S`,
+        '#38bdf8'
+      ),
+    });
+    const senScreen = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.4, 0.28),
+      senScreenMat
+    );
+    senScreen.position.set(senX, 1.58, senZ + 0.145);
+    sensorGroup.add(senScreen);
+
+    // Aspirated gas sampling sniffer tubes & status beacon LED
+    [-0.14, 0, 0.14].forEach((tx) => {
+      const sniffer = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.014, 0.018, 0.16, 12),
+        brushedSteelMat
+      );
+      sniffer.position.set(senX + tx, 1.28, senZ + 0.06);
+      sensorGroup.add(sniffer);
+    });
+
+    const senLed = new THREE.Mesh(
+      new THREE.SphereGeometry(0.022, 14, 14),
+      new THREE.MeshBasicMaterial({ color: 0x10b981 })
+    );
+    senLed.position.set(senX + 0.18, 1.74, senZ + 0.145);
+    sensorGroup.add(senLed);
+
+    // Top Meteorological Crossbar + Rotating 3-Cup Ultrasonic Anemometer Rotor
+    const crossArm = new THREE.Mesh(
+      new THREE.BoxGeometry(0.56, 0.03, 0.03),
       brushedSteelMat
     );
-    antenna.position.set(-2.55, 2.38, -2.35);
-    sensorGroup.add(antenna);
-    registerInteractiveGroup('env-sensor', sensorGroup, [-2.55, 0.02, -2.35]);
+    crossArm.position.set(senX, 2.22, senZ);
+    sensorGroup.add(crossArm);
+
+    const anemometerRotor = new THREE.Group();
+    anemometerRotor.position.set(senX + 0.24, 2.3, senZ);
+    const rotorHub = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.022, 0.022, 0.08, 14),
+      darkSteelMat
+    );
+    anemometerRotor.add(rotorHub);
+    for (let c = 0; c < 3; c++) {
+      const cAng = (c * Math.PI * 2) / 3;
+      const cupArm = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.005, 0.005, 0.11, 8),
+        brushedSteelMat
+      );
+      cupArm.rotation.z = Math.PI / 2;
+      cupArm.rotation.y = cAng;
+      cupArm.position.set(Math.cos(cAng) * 0.055, 0.02, Math.sin(cAng) * 0.055);
+      anemometerRotor.add(cupArm);
+
+      const cup = new THREE.Mesh(
+        new THREE.SphereGeometry(0.026, 12, 12, 0, Math.PI),
+        new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          metalness: 0.4,
+          roughness: 0.2,
+          side: THREE.DoubleSide,
+        })
+      );
+      cup.position.set(Math.cos(cAng) * 0.11, 0.02, Math.sin(cAng) * 0.11);
+      cup.rotation.y = cAng;
+      anemometerRotor.add(cup);
+    }
+    sensorGroup.add(anemometerRotor);
+
+    // Barometric static pressure probe on opposite crossbar end
+    const baroProbe = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.016, 0.016, 0.28, 14),
+      brushedSteelMat
+    );
+    baroProbe.position.set(senX - 0.24, 2.32, senZ);
+    sensorGroup.add(baroProbe);
+
+    registerInteractiveGroup(
+      'env-sensor',
+      sensorGroup,
+      [senX, 0.02, senZ],
+      0.32,
+      [senX, 2.58, senZ]
+    );
 
     // =========================================================================
-    // 6. VNT-06: Laminar Ventilation & HEPA Filtration System
+    // 6. VNT-06: Laminar Ventilation & Negative-Pressure HEPA Filtration System
     // =========================================================================
     const ventGroup = new THREE.Group();
-    const duct = new THREE.Mesh(
-      new THREE.BoxGeometry(0.38, 0.48, 1.95),
+    const ductHousing = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 0.56, 2.02),
       brushedSteelMat
     );
-    duct.position.set(-3.4, 2.48, -1.1);
-    ventGroup.add(duct);
-    for (let v = -1.85; v <= -0.35; v += 0.3) {
-      const vane = new THREE.Mesh(
-        new THREE.BoxGeometry(0.04, 0.36, 0.04),
+    ductHousing.position.set(-3.4, 2.46, -1.1);
+    ductHousing.castShadow = true;
+    ventGroup.add(ductHousing);
+
+    // Dark recessed HEPA filter plenum face
+    const plenumFace = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.86, 0.44),
+      new THREE.MeshStandardMaterial({
+        color: 0x090d16,
+        roughness: 0.7,
+        metalness: 0.2,
+      })
+    );
+    plenumFace.rotation.y = Math.PI / 2;
+    plenumFace.position.set(-3.185, 2.46, -1.1);
+    ventGroup.add(plenumFace);
+
+    // Dual Rotating Axial HEPA Impeller Fans inside the plenum
+    const hepaFanRotors: THREE.Group[] = [];
+    [-1.55, -0.65].forEach((fz) => {
+      const fanRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.17, 0.016, 12, 28),
         darkSteelMat
       );
-      vane.position.set(-3.19, 2.48, v);
+      fanRing.rotation.y = Math.PI / 2;
+      fanRing.position.set(-3.18, 2.46, fz);
+      ventGroup.add(fanRing);
+
+      const fanRotor = new THREE.Group();
+      fanRotor.position.set(-3.18, 2.46, fz);
+      const hub = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.04, 0.04, 0.03, 14),
+        new THREE.MeshStandardMaterial({ color: 0x0ea5e9, metalness: 0.7 })
+      );
+      hub.rotation.z = Math.PI / 2;
+      fanRotor.add(hub);
+
+      for (let b = 0; b < 6; b++) {
+        const bAng = (b * Math.PI * 2) / 6;
+        const blade = new THREE.Mesh(
+          new THREE.BoxGeometry(0.012, 0.14, 0.042),
+          brushedSteelMat
+        );
+        blade.position.set(
+          0,
+          Math.cos(bAng) * 0.085,
+          Math.sin(bAng) * 0.085
+        );
+        blade.rotation.x = bAng;
+        blade.rotation.y = 0.35;
+        fanRotor.add(blade);
+      }
+      ventGroup.add(fanRotor);
+      hepaFanRotors.push(fanRotor);
+    });
+
+    // Aerodynamic horizontal & vertical supply louvers
+    for (let v = -1.92; v <= -0.28; v += 0.24) {
+      const vane = new THREE.Mesh(
+        new THREE.BoxGeometry(0.03, 0.44, 0.025),
+        brushedSteelMat
+      );
+      vane.position.set(-3.17, 2.46, v);
       ventGroup.add(vane);
     }
-    registerInteractiveGroup('ventilation', ventGroup, [-3.15, 0.02, -1.1]);
+
+    // Side-mounted Magnehelic Differential Pressure Gauge & HEPA Status Beacon
+    const magGauge = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.075, 0.075, 0.04, 20),
+      new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.6 })
+    );
+    magGauge.rotation.x = Math.PI / 2;
+    magGauge.position.set(-3.32, 2.46, -0.07);
+    ventGroup.add(magGauge);
+
+    registerInteractiveGroup(
+      'ventilation',
+      ventGroup,
+      [-3.18, 2.12, -1.1],
+      0.2,
+      [-3.12, 2.88, -1.1]
+    );
 
     // =========================================================================
-    // 7. TMP-07: Temperature Monitor (West Wall Digital Console)
+    // 7. TMP-07: NIST Platinum Resistance Temperature Monitor (West Wall Console)
     // =========================================================================
     const tempGroup = new THREE.Group();
-    const tempBox = new THREE.Mesh(
-      new THREE.BoxGeometry(0.16, 0.54, 0.48),
-      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.32 })
+    const tempChassis = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, 0.58, 0.54),
+      new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        metalness: 0.65,
+        roughness: 0.25,
+      })
     );
-    tempBox.position.set(-3.52, 1.48, 0.45);
-    tempGroup.add(tempBox);
+    tempChassis.position.set(-3.52, 1.48, 0.45);
+    tempChassis.castShadow = true;
+    tempGroup.add(tempChassis);
+
+    // Brushed steel wall mounting flanges
+    [-0.31, 0.31].forEach((fy) => {
+      const flange = new THREE.Mesh(
+        new THREE.BoxGeometry(0.04, 0.05, 0.58),
+        brushedSteelMat
+      );
+      flange.position.set(-3.58, 1.48 + fy, 0.45);
+      tempGroup.add(flange);
+    });
+
     const tempScreenMat = new THREE.MeshBasicMaterial({
       map: createInstrumentScreenTexture(
         'TMP-07 THERMISTOR',
@@ -913,24 +1604,74 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
       ),
     });
     const tempScreen = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.42, 0.44),
+      new THREE.PlaneGeometry(0.46, 0.36),
       tempScreenMat
     );
     tempScreen.rotation.y = Math.PI / 2;
-    tempScreen.position.set(-3.43, 1.48, 0.45);
+    tempScreen.position.set(-3.435, 1.53, 0.45);
     tempGroup.add(tempScreen);
-    registerInteractiveGroup('temp-monitor', tempGroup, [-3.15, 0.02, 0.45]);
+
+    // Calibration control buttons & status LED on TMP-07 front bezel
+    [-0.12, 0, 0.12].forEach((bz, idx) => {
+      const btn = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.018, 0.018, 0.02, 12),
+        new THREE.MeshStandardMaterial({
+          color: idx === 0 ? 0x0ea5e9 : 0x475569,
+          metalness: 0.5,
+        })
+      );
+      btn.rotation.z = Math.PI / 2;
+      btn.position.set(-3.435, 1.28, 0.45 + bz);
+      tempGroup.add(btn);
+    });
+
+    // External Stainless-Steel Armored PRT Thermistor Probe & Conduit
+    const prtProbe = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.014, 0.01, 0.48, 14),
+      brushedSteelMat
+    );
+    prtProbe.position.set(-3.46, 1.62, 0.82);
+    tempGroup.add(prtProbe);
+    const prtTip = new THREE.Mesh(
+      new THREE.SphereGeometry(0.018, 12, 12),
+      new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7 })
+    );
+    prtTip.position.set(-3.46, 1.87, 0.82);
+    tempGroup.add(prtTip);
+
+    registerInteractiveGroup(
+      'temp-monitor',
+      tempGroup,
+      [-3.42, 1.15, 0.45],
+      0.18,
+      [-3.38, 1.92, 0.45]
+    );
 
     // =========================================================================
-    // 8. HUM-08: Humidity Monitor (North-East Wall Hygrometer Console)
+    // 8. HUM-08: Capacitive Thin-Film Polymer Humidity Monitor (North-East Wall)
     // =========================================================================
     const humGroup = new THREE.Group();
-    const humBox = new THREE.Mesh(
-      new THREE.BoxGeometry(0.52, 0.54, 0.16),
-      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.32 })
+    const humChassis = new THREE.Mesh(
+      new THREE.BoxGeometry(0.56, 0.58, 0.16),
+      new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        metalness: 0.65,
+        roughness: 0.25,
+      })
     );
-    humBox.position.set(2.25, 1.48, -3.05);
-    humGroup.add(humBox);
+    humChassis.position.set(2.25, 1.48, -3.04);
+    humChassis.castShadow = true;
+    humGroup.add(humChassis);
+
+    [-0.31, 0.31].forEach((fy) => {
+      const flange = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.05, 0.04),
+        brushedSteelMat
+      );
+      flange.position.set(2.25, 1.48 + fy, -3.1);
+      humGroup.add(flange);
+    });
+
     const humScreenMat = new THREE.MeshBasicMaterial({
       map: createInstrumentScreenTexture(
         'HUM-08 HYGROMETER',
@@ -940,24 +1681,91 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
       ),
     });
     const humScreen = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.44, 0.44),
+      new THREE.PlaneGeometry(0.46, 0.36),
       humScreenMat
     );
-    humScreen.position.set(2.25, 1.48, -2.96);
+    humScreen.position.set(2.25, 1.53, -2.955);
     humGroup.add(humScreen);
-    registerInteractiveGroup('humidity-monitor', humGroup, [2.25, 0.02, -2.55]);
+
+    // Sintered-bronze capacitive RH & Dew Point sensor wand mounted atop HUM-08
+    const rhProbeStem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.018, 0.022, 0.24, 16),
+      brushedSteelMat
+    );
+    rhProbeStem.position.set(2.08, 1.88, -3.02);
+    humGroup.add(rhProbeStem);
+    const rhSinteredCap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.024, 0.024, 0.09, 16),
+      new THREE.MeshStandardMaterial({
+        color: 0xd97706,
+        metalness: 0.78,
+        roughness: 0.35,
+      })
+    );
+    rhSinteredCap.position.set(2.08, 2.02, -3.02);
+    humGroup.add(rhSinteredCap);
+
+    [-0.12, 0, 0.12].forEach((bx, idx) => {
+      const btn = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.018, 0.018, 0.02, 12),
+        new THREE.MeshStandardMaterial({
+          color: idx === 0 ? 0x22d3ee : 0x475569,
+          metalness: 0.5,
+        })
+      );
+      btn.rotation.x = Math.PI / 2;
+      btn.position.set(2.25 + bx, 1.28, -2.955);
+      humGroup.add(btn);
+    });
+
+    registerInteractiveGroup(
+      'humidity-monitor',
+      humGroup,
+      [2.25, 1.15, -2.96],
+      0.18,
+      [2.25, 2.18, -2.95]
+    );
 
     // =========================================================================
-    // 9. WKS-04: Dual-Monitor LIMS Research Workstation & Lab Chair (East Zone)
+    // 9. WKS-04: Dual-Monitor LIMS Research Workstation, Tower PC & Ergonomic Chair
     // =========================================================================
     const wksGroup = new THREE.Group();
-    const desk = new THREE.Mesh(
-      new THREE.BoxGeometry(1.1, 0.78, 1.85),
-      new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4 })
+    // Chemical-resistant phenolic laboratory tabletop (with realistic leg space underneath)
+    const deskTop = new THREE.Mesh(
+      new THREE.BoxGeometry(1.06, 0.055, 1.92),
+      new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.32,
+        metalness: 0.25,
+      })
     );
-    desk.position.set(2.55, 0.39, 0.85);
-    desk.castShadow = true;
-    wksGroup.add(desk);
+    deskTop.position.set(2.55, 0.76, 0.85);
+    deskTop.castShadow = true;
+    deskTop.receiveShadow = true;
+    wksGroup.add(deskTop);
+
+    // 4 Tubular Steel Desk Legs & Modesty Panel
+    [
+      [2.08, -0.04],
+      [2.98, -0.04],
+      [2.08, 1.74],
+      [2.98, 1.74],
+    ].forEach(([lx, lz]) => {
+      const leg = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.026, 0.026, 0.74, 14),
+        brushedSteelMat
+      );
+      leg.position.set(lx, 0.37, lz);
+      leg.castShadow = true;
+      wksGroup.add(leg);
+    });
+
+    const modestyPanel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.03, 0.38, 1.76),
+      darkSteelMat
+    );
+    modestyPanel.position.set(2.96, 0.54, 0.85);
+    wksGroup.add(modestyPanel);
 
     const limsScreenMat = new THREE.MeshBasicMaterial({
       map: createInstrumentScreenTexture(
@@ -968,73 +1776,198 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
       ),
     });
 
-    // Dual Widescreen Monitors + Stands
-    [0.42, 1.25].forEach((mz) => {
-      const monitorBezel = new THREE.Mesh(
-        new THREE.BoxGeometry(0.05, 0.48, 0.76),
-        new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.25 })
+    // Dual Widescreen Monitors + Articulated VESA Stands & Base Plates
+    [
+      { mz: 0.44, rotY: -Math.PI / 2 + 0.14 },
+      { mz: 1.24, rotY: -Math.PI / 2 - 0.14 },
+    ].forEach(({ mz, rotY }) => {
+      const standBase = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.018, 0.26),
+        darkSteelMat
       );
-      monitorBezel.position.set(2.62, 1.08, mz);
-      wksGroup.add(monitorBezel);
+      standBase.position.set(2.74, 0.795, mz);
+      wksGroup.add(standBase);
+
+      const standPillar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.02, 0.024, 0.32, 12),
+        brushedSteelMat
+      );
+      standPillar.position.set(2.76, 0.95, mz);
+      wksGroup.add(standPillar);
+
+      const monGroup = new THREE.Group();
+      monGroup.position.set(2.68, 1.12, mz);
+      monGroup.rotation.y = rotY;
+
+      const monitorBezel = new THREE.Mesh(
+        new THREE.BoxGeometry(0.76, 0.46, 0.035),
+        new THREE.MeshStandardMaterial({
+          color: 0x090d16,
+          roughness: 0.22,
+          metalness: 0.4,
+        })
+      );
+      monitorBezel.castShadow = true;
+      monGroup.add(monitorBezel);
 
       const screenPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.72, 0.42),
+        new THREE.PlaneGeometry(0.71, 0.41),
         limsScreenMat
       );
-      screenPlane.rotation.y = -Math.PI / 2;
-      screenPlane.position.set(2.59, 1.08, mz);
-      wksGroup.add(screenPlane);
+      screenPlane.position.set(0, 0, 0.019);
+      monGroup.add(screenPlane);
+
+      wksGroup.add(monGroup);
     });
 
-    // Keyboard & Ergonomic Lab Stool
+    // High-Performance LIMS Workstation Tower PC Chassis on North Corner of Desk
+    const pcTower = new THREE.Mesh(
+      new THREE.BoxGeometry(0.44, 0.46, 0.22),
+      new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        metalness: 0.65,
+        roughness: 0.24,
+      })
+    );
+    pcTower.position.set(2.65, 1.02, 0.02);
+    pcTower.castShadow = true;
+    wksGroup.add(pcTower);
+    const pcLightStrip = new THREE.Mesh(
+      new THREE.BoxGeometry(0.015, 0.38, 0.02),
+      new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+    );
+    pcLightStrip.position.set(2.425, 1.02, 0.09);
+    wksGroup.add(pcLightStrip);
+
+    // Mechanical Keyboard, Wrist Pad & Optical Mouse on Desk
     const keyboard = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.015, 0.46),
+      new THREE.BoxGeometry(0.18, 0.018, 0.46),
       darkSteelMat
     );
-    keyboard.position.set(2.25, 0.79, 0.85);
+    keyboard.position.set(2.26, 0.795, 0.82);
     wksGroup.add(keyboard);
 
-    const chairSeat = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.24, 0.24, 0.06, 20),
-      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 })
+    const mousePad = new THREE.Mesh(
+      new THREE.BoxGeometry(0.24, 0.006, 0.22),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 })
     );
-    chairSeat.position.set(1.72, 0.52, 0.85);
+    mousePad.position.set(2.26, 0.79, 1.22);
+    wksGroup.add(mousePad);
+    const mouseBody = new THREE.Mesh(
+      new THREE.SphereGeometry(0.036, 14, 12),
+      new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.4 })
+    );
+    mouseBody.scale.set(1.35, 0.55, 0.85);
+    mouseBody.position.set(2.26, 0.805, 1.22);
+    wksGroup.add(mouseBody);
+
+    // 5-Star Ergonomic Laboratory Task Chair with Backrest & Casters
+    const chairX = 1.72;
+    const chairZ = 0.85;
+    const chairSeat = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.24, 0.23, 0.065, 24),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.45 })
+    );
+    chairSeat.position.set(chairX, 0.5, chairZ);
+    chairSeat.castShadow = true;
     wksGroup.add(chairSeat);
+
+    const chairBack = new THREE.Mesh(
+      new THREE.BoxGeometry(0.06, 0.42, 0.38),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.45 })
+    );
+    chairBack.position.set(chairX - 0.22, 0.78, chairZ);
+    chairBack.castShadow = true;
+    wksGroup.add(chairBack);
+
+    const chairSpine = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.34, 0.06),
+      darkSteelMat
+    );
+    chairSpine.position.set(chairX - 0.24, 0.62, chairZ);
+    wksGroup.add(chairSpine);
+
     const chairPedestal = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.03, 0.03, 0.5, 12),
+      new THREE.CylinderGeometry(0.028, 0.028, 0.44, 14),
       brushedSteelMat
     );
-    chairPedestal.position.set(1.72, 0.25, 0.85);
+    chairPedestal.position.set(chairX, 0.26, chairZ);
     wksGroup.add(chairPedestal);
 
-    registerInteractiveGroup('research-computer', wksGroup, [2.55, 0.02, 0.85]);
+    for (let s = 0; s < 5; s++) {
+      const sAng = (s * Math.PI * 2) / 5;
+      const starLeg = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.022, 0.03),
+        brushedSteelMat
+      );
+      starLeg.position.set(
+        chairX + Math.cos(sAng) * 0.12,
+        0.05,
+        chairZ + Math.sin(sAng) * 0.12
+      );
+      starLeg.rotation.y = -sAng;
+      wksGroup.add(starLeg);
+    }
+
+    registerInteractiveGroup(
+      'research-computer',
+      wksGroup,
+      [2.35, 0.02, 0.85],
+      0.38,
+      [2.55, 1.54, 0.85]
+    );
 
     // =========================================================================
-    // 10. CAM-05: Dual Articulated Surgical Lamps & Optical/LWIR Camera Rig
+    // 10. CAM-05: Ceiling Gantry Dual-Spectrum LWIR Thermal & Optical Camera Rig
     // =========================================================================
     const camGroup = new THREE.Group();
-    const gantry = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.05, 0.05, 0.55, 16),
+    const ceilingFlange = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.22, 0.06, 24),
       darkSteelMat
+    );
+    ceilingFlange.position.set(0, 3.12, 0);
+    camGroup.add(ceilingFlange);
+
+    const gantry = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.048, 0.048, 0.56, 20),
+      brushedSteelMat
     );
     gantry.position.set(0, 2.82, 0);
     camGroup.add(gantry);
 
+    // Articulated Spring Boom Arms extending to the Dual Surgical Dome Lights
     const beamCones: THREE.Mesh[] = [];
-    [-0.42, 0.42].forEach((lx) => {
+    [-0.48, 0.48].forEach((lx) => {
+      const boomArm = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.022, 0.022, 0.52, 14),
+        brushedSteelMat
+      );
+      boomArm.rotation.z = lx < 0 ? 1.15 : -1.15;
+      boomArm.position.set(lx * 0.5, 2.68, 0);
+      camGroup.add(boomArm);
+
       const dome = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.24, 0.3, 0.08, 24),
+        new THREE.CylinderGeometry(0.24, 0.32, 0.09, 28),
         brushedSteelMat
       );
       dome.position.set(lx, 2.52, 0);
       camGroup.add(dome);
+
       const lens = new THREE.Mesh(
-        new THREE.CircleGeometry(0.26, 24),
+        new THREE.CircleGeometry(0.28, 28),
         new THREE.MeshBasicMaterial({ color: 0xe0f2fe, side: THREE.DoubleSide })
       );
       lens.rotation.x = Math.PI / 2;
       lens.position.set(lx, 2.47, 0);
       camGroup.add(lens);
+
+      // Sterile central positioning handle under surgical lamp dome
+      const sterileHandle = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.016, 0.012, 0.11, 12),
+        darkSteelMat
+      );
+      sterileHandle.position.set(lx, 2.42, 0);
+      camGroup.add(sterileHandle);
 
       // Volumetric Surgical Light Cone
       const beamCone = new THREE.Mesh(
@@ -1052,17 +1985,68 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
       beamCones.push(beamCone);
     });
 
-    const camBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.34, 0.22, 0.34),
+    // Central Gimbal-Mounted Dual-Spectrum LWIR Thermal & 4K Optical Camera Pod
+    const camChassis = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.2, 0.34),
+      new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        metalness: 0.68,
+        roughness: 0.22,
+      })
+    );
+    camChassis.position.set(0, 2.54, 0.08);
+    camGroup.add(camChassis);
+
+    const camShroud = new THREE.Mesh(
+      new THREE.BoxGeometry(0.34, 0.06, 0.36),
       new THREE.MeshStandardMaterial({
         color: 0x0284c7,
         metalness: 0.55,
         roughness: 0.2,
       })
     );
-    camBody.position.set(0, 2.55, 0);
-    camGroup.add(camBody);
-    registerInteractiveGroup('camera', camGroup, [0, 0.02, 0.65]);
+    camShroud.position.set(0, 2.63, 0.08);
+    camGroup.add(camShroud);
+
+    // Dual Downward-Facing Optical & Germanium LWIR Infrared Lens Barrels
+    [
+      { ox: -0.075, ringColor: 0x38bdf8 },
+      { ox: 0.075, ringColor: 0xf59e0b }, // Gold-coated Germanium LWIR thermal lens
+    ].forEach(({ ox, ringColor }) => {
+      const barrel = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.046, 0.052, 0.12, 20),
+        darkSteelMat
+      );
+      barrel.position.set(ox, 2.41, 0.08);
+      camGroup.add(barrel);
+
+      const lensGlass = new THREE.Mesh(
+        new THREE.CircleGeometry(0.042, 20),
+        new THREE.MeshBasicMaterial({
+          color: ringColor,
+          side: THREE.DoubleSide,
+        })
+      );
+      lensGlass.rotation.x = Math.PI / 2;
+      lensGlass.position.set(ox, 2.348, 0.08);
+      camGroup.add(lensGlass);
+    });
+
+    // Active Telemetry Recording Status LED on Camera Front
+    const camLed = new THREE.Mesh(
+      new THREE.SphereGeometry(0.016, 12, 12),
+      new THREE.MeshBasicMaterial({ color: 0xef4444 })
+    );
+    camLed.position.set(0.12, 2.54, 0.255);
+    camGroup.add(camLed);
+
+    registerInteractiveGroup(
+      'camera',
+      camGroup,
+      [0, 2.32, 0.08],
+      0.22,
+      [0, 2.86, 0.22]
+    );
 
     // =========================================================================
     // Laminar Airflow Particles
@@ -1168,6 +2152,9 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
           const found = ROOM_OBJECTS.find((o) => o.id === hitId);
           if (found) {
             onSelectObject(found);
+            if (!hitRegion) {
+              focusCameraOnObject(found.id);
+            }
           }
         }
       }
@@ -1180,10 +2167,91 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
       );
     };
 
+    let lastPinchDist = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        stateRef.current.isDragging = true;
+        stateRef.current.lastMouseX = e.touches[0].clientX;
+        stateRef.current.lastMouseY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        stateRef.current.isDragging = false;
+        lastPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1 && stateRef.current.isDragging) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - stateRef.current.lastMouseX;
+        const dy = e.touches[0].clientY - stateRef.current.lastMouseY;
+        stateRef.current.lastMouseX = e.touches[0].clientX;
+        stateRef.current.lastMouseY = e.touches[0].clientY;
+        setAutoOrbit(false);
+        setCameraAngle((prev) => prev - dx * 0.0065);
+        setCameraPitch((prev) =>
+          Math.max(0.14, Math.min(1.42, prev + dy * 0.0055))
+        );
+      } else if (e.touches.length === 2) {
+        e.preventDefault();
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        if (lastPinchDist > 0) {
+          const delta = lastPinchDist - dist;
+          setCameraZoom((z) =>
+            Math.max(2.0, Math.min(8.8, z + delta * 0.012))
+          );
+        }
+        lastPinchDist = dist;
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      stateRef.current.isDragging = false;
+      if (e.changedTouches.length === 1) {
+        const t = e.changedTouches[0];
+        const moveDelta =
+          Math.abs(t.clientX - stateRef.current.lastMouseX) +
+          Math.abs(t.clientY - stateRef.current.lastMouseY);
+        if (moveDelta < 8) {
+          const rect = renderer.domElement.getBoundingClientRect();
+          mouse.x = ((t.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((t.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+          const intersects = raycaster.intersectObjects(clickableMeshes, false);
+          if (intersects.length > 0) {
+            const hitMesh = intersects[0].object;
+            const hitId = hitMesh.userData.objectId;
+            const hitRegion = hitMesh.userData.regionId as
+              | AnatomicalRegionId
+              | undefined;
+            if (hitRegion) {
+              setSelectedRegionId(hitRegion);
+              setInspectorTab('inspector');
+            }
+            const found = ROOM_OBJECTS.find((o) => o.id === hitId);
+            if (found) {
+              onSelectObject(found);
+              if (!hitRegion) {
+                focusCameraOnObject(found.id);
+              }
+            }
+          }
+        }
+      }
+    };
+
     const domElem = renderer.domElement;
     domElem.addEventListener('mousedown', onPointerDown);
     domElem.addEventListener('mousemove', onPointerMove);
     domElem.addEventListener('wheel', onWheel, { passive: false });
+    domElem.addEventListener('touchstart', onTouchStart, { passive: true });
+    domElem.addEventListener('touchmove', onTouchMove, { passive: false });
+    domElem.addEventListener('touchend', onTouchEnd);
     window.addEventListener('mouseup', onPointerUp);
 
     let animId: number;
@@ -1194,7 +2262,9 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
     let smoothAngle = stateRef.current.cameraAngle;
     let smoothPitch = stateRef.current.cameraPitch;
     let smoothZoom = stateRef.current.cameraZoom;
+    let smoothTargetX = stateRef.current.cameraTargetX;
     let smoothTargetY = stateRef.current.cameraTargetY;
+    let smoothTargetZ = stateRef.current.cameraTargetZ;
 
     const animate = () => {
       animId = requestAnimationFrame(animate);
@@ -1211,23 +2281,38 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
         cameraAngle: targetAngle,
         cameraPitch: targetPitch,
         cameraZoom: targetZoom,
+        cameraTargetX: targetX,
         cameraTargetY: targetY,
+        cameraTargetZ: targetZ,
         autoOrbit: isOrbiting,
       } = stateRef.current;
 
-      // Smoothly interpolate camera position and target
+      // Smoothly interpolate camera position and 3D target + responsive aspect framing for narrow panes/screens
+      const aspectScale =
+        camera.aspect < 1.15
+          ? Math.min(1.42, 1.15 / Math.max(0.5, camera.aspect))
+          : 1.0;
+      const effectiveTargetZoom = Math.min(8.8, targetZoom * aspectScale);
       const desiredAngle = isOrbiting ? targetAngle + clock * 0.15 : targetAngle;
       smoothAngle += (desiredAngle - smoothAngle) * 0.12;
       smoothPitch += (targetPitch - smoothPitch) * 0.12;
-      smoothZoom += (targetZoom - smoothZoom) * 0.12;
+      smoothZoom += (effectiveTargetZoom - smoothZoom) * 0.12;
+      smoothTargetX += (targetX - smoothTargetX) * 0.12;
       smoothTargetY += (targetY - smoothTargetY) * 0.12;
+      smoothTargetZ += (targetZ - smoothTargetZ) * 0.12;
 
       camera.position.x =
+        smoothTargetX +
         Math.sin(smoothAngle) * Math.cos(smoothPitch) * smoothZoom;
-      camera.position.y = Math.sin(smoothPitch) * smoothZoom + 0.55;
+      camera.position.y =
+        Math.max(
+          0.35,
+          smoothTargetY * 0.65 + Math.sin(smoothPitch) * smoothZoom + 0.25
+        );
       camera.position.z =
+        smoothTargetZ +
         Math.cos(smoothAngle) * Math.cos(smoothPitch) * smoothZoom;
-      camera.lookAt(0, smoothTargetY, 0);
+      camera.lookAt(smoothTargetX, smoothTargetY, smoothTargetZ);
 
       surgicalSpot.intensity = 1.65 + (curParams.lightExposure / 1000) * 1.95;
       beamCones.forEach((cone) => {
@@ -1289,7 +2374,24 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
           '#22d3ee'
         );
         scaleScreenMat.needsUpdate = true;
+
+        // Update SEN-01 multi-gas OLED screen
+        if (senScreenMat.map) senScreenMat.map.dispose();
+        senScreenMat.map = createInstrumentScreenTexture(
+          'SEN-01 MULTI-GAS',
+          `${curMetrics.vocPpm} ppm`,
+          `845.2 hPa · CO2/H2S`,
+          '#38bdf8'
+        );
+        senScreenMat.needsUpdate = true;
       }
+
+      // Spin SEN-01 ultrasonic anemometer rotor & VNT-06 HEPA exhaust fans based on airflow
+      const fanSpeed = 0.03 + curParams.airflow * 0.18;
+      anemometerRotor.rotation.y += fanSpeed;
+      hepaFanRotors.forEach((rotor) => {
+        rotor.rotation.x += fanSpeed * 1.4;
+      });
 
       // Update the sculpted ForensicSubjectModel mounted on the exam-table
       subjectController.update({
@@ -1315,7 +2417,7 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
       posAttr.needsUpdate = true;
       particleMat.opacity = Math.min(0.85, 0.18 + curParams.airflow * 0.3);
 
-      // Pulse selected object's floor locator ring
+      // Pulse selected object's locator ring & 3D floating callout badge
       Object.entries(objectHighlightRings).forEach(([id, ringMesh]) => {
         const isSel = curSelected.id === id;
         const scale = isSel ? 1 + Math.sin(clock * 3) * 0.14 : 0.78;
@@ -1328,6 +2430,26 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
           : 0.32;
       });
 
+      Object.entries(objectCalloutSprites).forEach(([id, entry]) => {
+        const isSel = curSelected.id === id;
+        entry.sprite.visible = curNodes || isSel;
+        if (entry.isSelRendered !== isSel) {
+          entry.isSelRendered = isSel;
+          const mat = entry.sprite.material as THREE.SpriteMaterial;
+          if (mat.map) mat.map.dispose();
+          mat.map = createNodeCalloutTexture(
+            entry.code,
+            entry.shortName,
+            isSel
+          );
+          mat.needsUpdate = true;
+        }
+        const s = isSel ? 0.66 + Math.sin(clock * 3) * 0.03 : 0.52;
+        entry.sprite.scale.set(s, s * 0.24, 1);
+        entry.sprite.position.y =
+          entry.baseY + (isSel ? Math.sin(clock * 3) * 0.025 : 0);
+      });
+
       renderer.render(scene, camera);
     };
 
@@ -1335,19 +2457,27 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
 
     const handleResize = () => {
       if (!container) return;
-      camera.aspect = container.clientWidth / container.clientHeight;
+      const w = Math.max(1, container.clientWidth);
+      const h = Math.max(1, container.clientHeight);
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setSize(w, h);
     };
+    const resizeObserver = new ResizeObserver(() => handleResize());
+    resizeObserver.observe(container);
     window.addEventListener('resize', handleResize);
 
     return () => {
       cancelAnimationFrame(animId);
+      resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mouseup', onPointerUp);
       domElem.removeEventListener('mousedown', onPointerDown);
       domElem.removeEventListener('mousemove', onPointerMove);
       domElem.removeEventListener('wheel', onWheel);
+      domElem.removeEventListener('touchstart', onTouchStart);
+      domElem.removeEventListener('touchmove', onTouchMove);
+      domElem.removeEventListener('touchend', onTouchEnd);
       domElem.removeEventListener('webglcontextlost', handleContextLost);
       renderer.dispose();
     };
@@ -1374,27 +2504,44 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      {/* Left 7 Columns: Interactive 3D Chamber / Dedicated ForensicSubjectModel / 2D Blueprint */}
+    <div
+      ref={splitContainerRef}
+      style={
+        {
+          '--left-split': isInspectorCollapsed ? '100%' : `${splitRatio}%`,
+          '--right-split': `${100 - splitRatio}%`,
+        } as React.CSSProperties
+      }
+      className={`flex flex-col lg:flex-row items-stretch lg:items-start gap-4 lg:gap-0 transition-all ${
+        isFullscreen
+          ? isLightMode
+            ? 'fixed inset-2 sm:inset-4 z-50 bg-slate-100/95 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-slate-300 shadow-2xl overflow-y-auto'
+            : 'fixed inset-2 sm:inset-4 z-50 bg-[#050811]/95 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-2xl overflow-y-auto'
+          : 'w-full'
+      }`}
+    >
+      {/* Left Resizable Pane: Interactive 3D Chamber / Dedicated ForensicSubjectModel / 2D Blueprint */}
       <div
-        className={`lg:col-span-7 rounded-xl border overflow-hidden relative ${
+        className={`w-full ${
+          isInspectorCollapsed ? 'lg:w-full' : 'lg:w-[var(--left-split)]'
+        } shrink-0 rounded-xl border overflow-hidden relative transition-[width] duration-75 ${
           isLightMode
             ? 'bg-white border-slate-200 shadow-sm'
             : 'bg-[#080D1A] border-slate-800 shadow-xl'
         }`}
       >
-        {/* Top Viewport Mode & Camera Bar */}
+        {/* Top Viewport Mode, Camera & Layout Resizer Bar */}
         <div
-          className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b z-10 relative ${
+          className={`flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-4 py-2.5 border-b z-10 relative ${
             isLightMode
               ? 'bg-slate-50 border-slate-200 text-slate-800'
               : 'bg-slate-950/95 border-slate-800 text-slate-100'
           }`}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {webglSupported && (
               <div
-                className={`flex items-center p-1 rounded-lg border ${
+                className={`flex flex-wrap items-center p-1 rounded-lg border ${
                   isLightMode
                     ? 'bg-slate-200/70 border-slate-300'
                     : 'bg-slate-900 border-slate-800'
@@ -1403,7 +2550,7 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
                 <button
                   type="button"
                   onClick={() => setViewMode('3d')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                  className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                     viewMode === '3d'
                       ? 'bg-cyan-500 text-slate-950 font-semibold shadow-xs'
                       : isLightMode
@@ -1422,7 +2569,7 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
                     );
                     if (spc) onSelectObject(spc);
                   }}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                  className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                     viewMode === 'subject-model'
                       ? 'bg-cyan-500 text-slate-950 font-semibold shadow-xs'
                       : isLightMode
@@ -1435,7 +2582,7 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
                 <button
                   type="button"
                   onClick={() => setViewMode('2d')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                  className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                     viewMode === '2d'
                       ? 'bg-cyan-500 text-slate-950 font-semibold shadow-xs'
                       : isLightMode
@@ -1449,43 +2596,142 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
             )}
           </div>
 
-          {viewMode === '3d' && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => applyCameraPreset('body-closeup')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors whitespace-nowrap ${
+          <div className="flex flex-wrap items-center gap-1.5">
+            {viewMode === '3d' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => applyCameraPreset('body-closeup')}
+                  className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors whitespace-nowrap ${
+                    isLightMode
+                      ? 'bg-cyan-50 border-cyan-400 text-cyan-800 hover:bg-cyan-100'
+                      : 'bg-cyan-500/15 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/25'
+                  }`}
+                >
+                  Focus: 3D Body
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyCameraPreset('overhead-autopsy')}
+                  className={`px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${
+                    isLightMode
+                      ? 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
+                      : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  Top-Down
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyCameraPreset('full-room')}
+                  className={`px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${
+                    isLightMode
+                      ? 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
+                      : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  Full Room
+                </button>
+              </>
+            )}
+
+            {/* Viewport Height Quick Presets (S / M / L) */}
+            {viewMode !== 'subject-model' && (
+              <div
+                className={`hidden sm:flex items-center p-0.5 rounded-lg border text-[11px] font-mono ${
                   isLightMode
-                    ? 'bg-cyan-50 border-cyan-400 text-cyan-800 hover:bg-cyan-100'
-                    : 'bg-cyan-500/15 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/25'
+                    ? 'bg-white border-slate-300'
+                    : 'bg-slate-900 border-slate-800'
                 }`}
+                title="Quick Viewport Height Presets"
               >
-                Focus: 3D Body
-              </button>
-              <button
-                type="button"
-                onClick={() => applyCameraPreset('overhead-autopsy')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${
-                  isLightMode
+                {[
+                  { label: 'S', h: 380 },
+                  { label: 'M', h: 520 },
+                  { label: 'L', h: 680 },
+                ].map((sz) => (
+                  <button
+                    key={sz.label}
+                    type="button"
+                    onClick={() => setStageHeight(sz.h)}
+                    className={`px-2 py-1 rounded-md transition-colors ${
+                      Math.abs(stageHeight - sz.h) < 35
+                        ? 'bg-cyan-500 text-slate-950 font-semibold'
+                        : isLightMode
+                          ? 'text-slate-600 hover:text-slate-900'
+                          : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {sz.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Toggle Side Inspector Panel (Full-Width 3D vs Split View) */}
+            <button
+              type="button"
+              onClick={() => setIsInspectorCollapsed((c) => !c)}
+              title={
+                isInspectorCollapsed
+                  ? 'Show Right Inspector Console (Split View)'
+                  : 'Hide Right Inspector Console (Full-Width 3D View)'
+              }
+              className={`hidden lg:inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${
+                isInspectorCollapsed
+                  ? isLightMode
+                    ? 'bg-cyan-50 border-cyan-400 text-cyan-800'
+                    : 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                  : isLightMode
                     ? 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
                     : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
-                }`}
-              >
-                Top-Down
-              </button>
-              <button
-                type="button"
-                onClick={() => applyCameraPreset('full-room')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${
-                  isLightMode
+              }`}
+            >
+              {isInspectorCollapsed ? (
+                <>
+                  <PanelRightOpen className="w-3.5 h-3.5" />
+                  <span>Show Inspector</span>
+                </>
+              ) : (
+                <>
+                  <PanelRightClose className="w-3.5 h-3.5" />
+                  <span>Full Width</span>
+                </>
+              )}
+            </button>
+
+            {/* Fullscreen / Expanded Workspace Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsFullscreen((f) => !f)}
+              title={
+                isFullscreen
+                  ? 'Exit Expanded View (Esc)'
+                  : 'Expand 3D Workspace to Fullscreen'
+              }
+              className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${
+                isFullscreen
+                  ? isLightMode
+                    ? 'bg-cyan-50 border-cyan-500 text-cyan-800 font-semibold'
+                    : 'bg-cyan-500/20 border-cyan-400 text-cyan-200 font-semibold'
+                  : isLightMode
                     ? 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
                     : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
-                }`}
-              >
-                Full Room
-              </button>
-            </div>
-          )}
+              }`}
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Collapse</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Expand</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Second Toolbar: 3D Structural Anatomy Layer Switcher */}
@@ -1599,199 +2845,229 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
             />
           </div>
         ) : (
-          <div className="relative w-full h-[480px] sm:h-[520px] select-none">
-            {viewMode === '3d' && webglSupported ? (
-              <>
-                <div
-                  ref={mountRef}
-                  className="w-full h-full cursor-grab active:cursor-grabbing"
-                />
-                {/* Clean Top-Left Active Target Readout */}
-                <div className="absolute top-3 left-3 pointer-events-none">
+          <>
+            <div
+              style={{ height: `${stageHeight}px` }}
+              className="relative w-full select-none transition-[height] duration-75"
+            >
+              {viewMode === '3d' && webglSupported ? (
+                <>
                   <div
-                    className={`flex items-center gap-2 backdrop-blur-md border px-3 py-1.5 rounded-lg shadow-sm ${
-                      isLightMode
-                        ? 'bg-white/95 border-slate-300 text-slate-900'
-                        : 'bg-slate-950/85 border-slate-800 text-slate-100'
-                    }`}
-                  >
-                    <Crosshair
-                      className={`w-3.5 h-3.5 shrink-0 ${
-                        isLightMode ? 'text-cyan-700' : 'text-cyan-400'
-                      }`}
-                    />
-                    <span className="text-xs font-mono font-medium">
-                      {hoveredObjectName ||
-                        `${selectedObject.code} · ${selectedObject.name}`}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Bottom Camera Zoom & Helper Bar */}
-                <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-                  <div
-                    className={`backdrop-blur-md border px-3 py-1.5 rounded-lg text-xs ${
-                      isLightMode
-                        ? 'bg-white/90 border-slate-300 text-slate-700 shadow-xs'
-                        : 'bg-slate-950/80 border-slate-800 text-slate-300'
-                    }`}
-                  >
-                    Click any 3D region or instrument · Drag to rotate · Scroll
-                    to zoom
-                  </div>
-                  <div
-                    className={`flex items-center gap-1.5 pointer-events-auto backdrop-blur-md border px-2.5 py-1 rounded-lg ${
-                      isLightMode
-                        ? 'bg-white/95 border-slate-300 text-slate-800 shadow-xs'
-                        : 'bg-slate-950/85 border-slate-800 text-slate-200'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCameraZoom((z) => Math.max(2.0, z - 0.5))
-                      }
-                      className={`px-2 py-0.5 text-xs font-mono font-medium ${
+                    ref={mountRef}
+                    className="w-full h-full cursor-grab active:cursor-grabbing"
+                  />
+                  {/* Clean Top-Left Active Target Readout */}
+                  <div className="absolute top-3 left-3 right-3 sm:right-auto pointer-events-none">
+                    <div
+                      className={`inline-flex items-center gap-2 backdrop-blur-md border px-3 py-1.5 rounded-lg shadow-sm max-w-full ${
                         isLightMode
-                          ? 'text-slate-700 hover:text-cyan-700'
-                          : 'text-slate-200 hover:text-cyan-300'
+                          ? 'bg-white/95 border-slate-300 text-slate-900'
+                          : 'bg-slate-950/85 border-slate-800 text-slate-100'
                       }`}
                     >
-                      Zoom +
-                    </button>
-                    <span className="text-slate-400">|</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCameraZoom((z) => Math.min(8.8, z + 0.5))
-                      }
-                      className={`px-2 py-0.5 text-xs font-mono font-medium ${
-                        isLightMode
-                          ? 'text-slate-700 hover:text-cyan-700'
-                          : 'text-slate-200 hover:text-cyan-300'
-                      }`}
-                    >
-                      Zoom −
-                    </button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              /* 2D Architectural Blueprint Schematic View with Structural Subject Silhouette */
-              <div
-                className={`w-full h-full relative p-6 flex flex-col justify-between overflow-hidden ${
-                  isLightMode ? 'bg-slate-100' : 'bg-[#0B1120]'
-                }`}
-              >
-                <svg
-                  className="w-full h-full absolute inset-0 opacity-25 pointer-events-none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <defs>
-                    <pattern
-                      id="lab-grid"
-                      width="32"
-                      height="32"
-                      patternUnits="userSpaceOnUse"
-                    >
-                      <path
-                        d="M 32 0 L 0 0 0 32"
-                        fill="none"
-                        stroke={isLightMode ? '#0284c7' : '#38bdf8'}
-                        strokeWidth="0.6"
+                      <Crosshair
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          isLightMode ? 'text-cyan-700' : 'text-cyan-400'
+                        }`}
                       />
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#lab-grid)" />
-                </svg>
-
-                <div
-                  className={`relative w-full h-full border-2 rounded-lg ${
-                    isLightMode
-                      ? 'border-cyan-600/40 bg-white/80'
-                      : 'border-cyan-500/40 bg-slate-950/50'
-                  }`}
-                >
-                  <div
-                    className={`absolute top-0 left-1/2 -translate-x-1/2 w-56 h-5 border-b border-x flex items-center justify-center ${
-                      isLightMode
-                        ? 'bg-cyan-100 border-cyan-500 text-cyan-900'
-                        : 'bg-cyan-500/30 border-cyan-400 text-cyan-200'
-                    }`}
-                  >
-                    <span className="text-xs font-mono font-medium">
-                      North Window (Baguio 1,540m)
-                    </span>
+                      <span className="text-xs font-mono font-medium truncate">
+                        {hoveredObjectName ||
+                          `${selectedObject.code} · ${selectedObject.name}`}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Central Examination Table with 2D Structural Anatomy SVG */}
-                  <div
-                    className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-32 rounded border-2 flex flex-col items-center justify-center ${
-                      isLightMode
-                        ? 'border-cyan-600/60 bg-slate-50 shadow-sm'
-                        : 'border-cyan-400/60 bg-slate-900/90'
-                    }`}
-                  >
-                    <svg
-                      viewBox="0 0 220 70"
-                      className={`w-52 h-20 ${
+                  {/* Bottom Camera Zoom & Helper Bar */}
+                  <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+                    <div
+                      className={`backdrop-blur-md border px-3 py-1.5 rounded-lg text-xs hidden sm:block ${
                         isLightMode
-                          ? 'stroke-cyan-700 fill-cyan-500/20'
-                          : 'stroke-cyan-300 fill-cyan-500/15'
-                      }`}
-                      strokeWidth="1.4"
-                    >
-                      {/* Continuous anatomical human body contour (Head, Neck, Shoulders, Arms/Hands, Torso, Pelvis, Legs/Feet) */}
-                      <path d="M 16 35 C 16 27, 23 24, 31 24 C 36 24, 39 27, 41 30 L 46 30 C 49 21, 53 13, 60 12 L 116 14 C 120 14, 123 16, 123 19 C 123 21, 119 22, 114 21 L 64 20 L 64 22 C 76 23, 92 24, 108 23 C 115 22, 122 23, 128 24 L 194 25 C 199 25, 203 23, 205 26 C 206 29, 202 33, 194 33 L 128 34 L 128 36 L 194 37 C 202 37, 206 41, 205 44 C 203 47, 199 45, 194 45 L 128 46 C 122 47, 115 48, 108 47 C 92 46, 76 47, 64 48 L 64 50 L 114 49 C 119 48, 123 49, 123 51 C 123 54, 120 56, 116 56 L 60 58 C 53 57, 49 49, 46 40 L 41 40 C 39 43, 36 46, 31 46 C 23 46, 16 43, 16 35 Z" />
-                      <line
-                        x1="20"
-                        y1="35"
-                        x2="128"
-                        y2="35"
-                        strokeDasharray="3 2"
-                      />
-                    </svg>
-                    <span
-                      className={`text-xs font-mono font-semibold ${
-                        isLightMode ? 'text-cyan-800' : 'text-cyan-300'
+                          ? 'bg-white/90 border-slate-300 text-slate-700 shadow-xs'
+                          : 'bg-slate-950/80 border-slate-800 text-slate-300'
                       }`}
                     >
-                      3D Structural Subject (SPC-10)
-                    </span>
-                  </div>
-
-                  {ROOM_OBJECTS.map((obj) => {
-                    const isSelected = selectedObject.id === obj.id;
-                    const isInspected = inspectedObjectIds.includes(obj.id);
-                    return (
+                      Click any 3D region or instrument · Drag to rotate ·
+                      Scroll/Pinch to zoom
+                    </div>
+                    <div
+                      className={`flex items-center gap-1.5 pointer-events-auto backdrop-blur-md border px-2.5 py-1 rounded-lg ml-auto ${
+                        isLightMode
+                          ? 'bg-white/95 border-slate-300 text-slate-800 shadow-xs'
+                          : 'bg-slate-950/85 border-slate-800 text-slate-200'
+                      }`}
+                    >
                       <button
-                        key={obj.id}
                         type="button"
-                        onClick={() => onSelectObject(obj)}
-                        style={{
-                          left: `${obj.coords2D.x}%`,
-                          top: `${obj.coords2D.y}%`,
-                        }}
-                        className={`absolute -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md text-xs font-mono transition-transform duration-150 flex items-center gap-1.5 border ${
-                          isSelected
-                            ? 'bg-cyan-500 text-slate-950 border-cyan-700 font-semibold scale-110 z-20 shadow-md'
-                            : isInspected
-                              ? isLightMode
-                                ? 'bg-white text-cyan-800 border-cyan-500 font-medium shadow-xs hover:scale-105 z-10'
-                                : 'bg-slate-900/95 text-cyan-300 border-cyan-500/60 hover:scale-105 z-10'
-                              : isLightMode
-                                ? 'bg-white text-slate-700 border-slate-300 shadow-xs hover:border-cyan-500 hover:scale-105 z-10'
-                                : 'bg-slate-900/90 text-slate-200 border-slate-700 hover:border-cyan-400 hover:scale-105 z-10'
+                        onClick={() =>
+                          setCameraZoom((z) => Math.max(2.0, z - 0.5))
+                        }
+                        className={`px-2 py-0.5 text-xs font-mono font-medium ${
+                          isLightMode
+                            ? 'text-slate-700 hover:text-cyan-700'
+                            : 'text-slate-200 hover:text-cyan-300'
                         }`}
                       >
-                        <span>{obj.code}</span>
+                        Zoom +
                       </button>
-                    );
-                  })}
+                      <span className="text-slate-400">|</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCameraZoom((z) => Math.min(8.8, z + 0.5))
+                        }
+                        className={`px-2 py-0.5 text-xs font-mono font-medium ${
+                          isLightMode
+                            ? 'text-slate-700 hover:text-cyan-700'
+                            : 'text-slate-200 hover:text-cyan-300'
+                        }`}
+                      >
+                        Zoom −
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* 2D Architectural Blueprint Schematic View with Structural Subject Silhouette */
+                <div
+                  className={`w-full h-full relative p-3 sm:p-6 flex flex-col justify-between overflow-hidden ${
+                    isLightMode ? 'bg-slate-100' : 'bg-[#0B1120]'
+                  }`}
+                >
+                  <svg
+                    className="w-full h-full absolute inset-0 opacity-25 pointer-events-none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <pattern
+                        id="lab-grid"
+                        width="32"
+                        height="32"
+                        patternUnits="userSpaceOnUse"
+                      >
+                        <path
+                          d="M 32 0 L 0 0 0 32"
+                          fill="none"
+                          stroke={isLightMode ? '#0284c7' : '#38bdf8'}
+                          strokeWidth="0.6"
+                        />
+                      </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#lab-grid)" />
+                  </svg>
+
+                  <div
+                    className={`relative w-full h-full border-2 rounded-lg ${
+                      isLightMode
+                        ? 'border-cyan-600/40 bg-white/80'
+                        : 'border-cyan-500/40 bg-slate-950/50'
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0 left-1/2 -translate-x-1/2 px-3 max-w-[80%] h-5 border-b border-x flex items-center justify-center ${
+                        isLightMode
+                          ? 'bg-cyan-100 border-cyan-500 text-cyan-900'
+                          : 'bg-cyan-500/30 border-cyan-400 text-cyan-200'
+                      }`}
+                    >
+                      <span className="text-[11px] sm:text-xs font-mono font-medium truncate">
+                        North Window (Baguio 1,540m)
+                      </span>
+                    </div>
+
+                    {/* Central Examination Table with 2D Structural Anatomy SVG */}
+                    <div
+                      className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[46%] max-w-64 h-[28%] max-h-32 rounded border-2 flex flex-col items-center justify-center p-2 ${
+                        isLightMode
+                          ? 'border-cyan-600/60 bg-slate-50 shadow-sm'
+                          : 'border-cyan-400/60 bg-slate-900/90'
+                      }`}
+                    >
+                      <svg
+                        viewBox="0 0 220 70"
+                        className={`w-full max-w-52 h-auto max-h-20 ${
+                          isLightMode
+                            ? 'stroke-cyan-700 fill-cyan-500/20'
+                            : 'stroke-cyan-300 fill-cyan-500/15'
+                        }`}
+                        strokeWidth="1.4"
+                      >
+                        {/* Continuous anatomical human body contour (Head, Neck, Shoulders, Arms/Hands, Torso, Pelvis, Legs/Feet) */}
+                        <path d="M 16 35 C 16 27, 23 24, 31 24 C 36 24, 39 27, 41 30 L 46 30 C 49 21, 53 13, 60 12 L 116 14 C 120 14, 123 16, 123 19 C 123 21, 119 22, 114 21 L 64 20 L 64 22 C 76 23, 92 24, 108 23 C 115 22, 122 23, 128 24 L 194 25 C 199 25, 203 23, 205 26 C 206 29, 202 33, 194 33 L 128 34 L 128 36 L 194 37 C 202 37, 206 41, 205 44 C 203 47, 199 45, 194 45 L 128 46 C 122 47, 115 48, 108 47 C 92 46, 76 47, 64 48 L 64 50 L 114 49 C 119 48, 123 49, 123 51 C 123 54, 120 56, 116 56 L 60 58 C 53 57, 49 49, 46 40 L 41 40 C 39 43, 36 46, 31 46 C 23 46, 16 43, 16 35 Z" />
+                        <line
+                          x1="20"
+                          y1="35"
+                          x2="128"
+                          y2="35"
+                          strokeDasharray="3 2"
+                        />
+                      </svg>
+                      <span
+                        className={`text-[10px] sm:text-xs font-mono font-semibold truncate max-w-full ${
+                          isLightMode ? 'text-cyan-800' : 'text-cyan-300'
+                        }`}
+                      >
+                        3D Structural Subject (SPC-10)
+                      </span>
+                    </div>
+
+                    {ROOM_OBJECTS.map((obj) => {
+                      const isSelected = selectedObject.id === obj.id;
+                      const isInspected = inspectedObjectIds.includes(obj.id);
+                      return (
+                        <button
+                          key={obj.id}
+                          type="button"
+                          onClick={() => onSelectObject(obj)}
+                          style={{
+                            left: `${obj.coords2D.x}%`,
+                            top: `${obj.coords2D.y}%`,
+                          }}
+                          className={`absolute -translate-x-1/2 -translate-y-1/2 px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-xs font-mono transition-transform duration-150 flex items-center gap-1.5 border ${
+                            isSelected
+                              ? 'bg-cyan-500 text-slate-950 border-cyan-700 font-semibold scale-110 z-20 shadow-md'
+                              : isInspected
+                                ? isLightMode
+                                  ? 'bg-white text-cyan-800 border-cyan-500 font-medium shadow-xs hover:scale-105 z-10'
+                                  : 'bg-slate-900/95 text-cyan-300 border-cyan-500/60 hover:scale-105 z-10'
+                                : isLightMode
+                                  ? 'bg-white text-slate-700 border-slate-300 shadow-xs hover:border-cyan-500 hover:scale-105 z-10'
+                                  : 'bg-slate-900/90 text-slate-200 border-slate-700 hover:border-cyan-400 hover:scale-105 z-10'
+                          }`}
+                        >
+                          <span>{obj.code}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+
+            {/* Interactive Vertical Height Resize Bar */}
+            <div
+              onMouseDown={startStageHeightResize}
+              onTouchStart={startStageHeightResize}
+              onDoubleClick={() => setStageHeight(520)}
+              title="Drag vertically to resize 3D viewport height (double-click to reset to 520px)"
+              className={`w-full h-3.5 cursor-row-resize flex items-center justify-center border-t transition-colors select-none ${
+                isDraggingHeight
+                  ? 'bg-cyan-500/25 border-cyan-400'
+                  : isLightMode
+                    ? 'bg-slate-100 hover:bg-cyan-50 border-slate-200'
+                    : 'bg-slate-950 hover:bg-slate-900 border-slate-800'
+              }`}
+            >
+              <GripHorizontal
+                className={`w-4 h-3.5 ${
+                  isDraggingHeight
+                    ? 'text-cyan-400'
+                    : isLightMode
+                      ? 'text-slate-400'
+                      : 'text-slate-500'
+                }`}
+              />
+            </div>
+          </>
         )}
 
         {/* Bottom Interactive Instrument Selector Strip (All 10 Clickable Objects) */}
@@ -1818,7 +3094,7 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
               {inspectedObjectIds.length}/{ROOM_OBJECTS.length} Inspected
             </span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
             {ROOM_OBJECTS.map((obj) => {
               const isSelected = selectedObject.id === obj.id;
               const isVisited = inspectedObjectIds.includes(obj.id);
@@ -1829,6 +3105,10 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
                   onClick={() => {
                     onSelectObject(obj);
                     setInspectorTab('inspector');
+                    if (viewMode === 'subject-model' && obj.id !== 'specimen-area') {
+                      setViewMode('3d');
+                    }
+                    focusCameraOnObject(obj.id);
                   }}
                   className={`px-3 py-2 rounded-lg text-left transition-all border flex flex-col justify-between ${
                     isSelected
@@ -1870,14 +3150,46 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
         </div>
       </div>
 
-      {/* Right 5 Columns: Multi-Mode Command & Telemetry Inspector Console */}
-      <div
-        className={`lg:col-span-5 rounded-xl border overflow-hidden flex flex-col ${
-          isLightMode
-            ? 'bg-white border-slate-200 text-slate-900 shadow-sm'
-            : 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-xl'
-        }`}
-      >
+      {/* Interactive Horizontal Split Resizer Handle (lg+ screens) */}
+      {!isInspectorCollapsed && (
+        <div
+          onMouseDown={startSplitResize}
+          onTouchStart={startSplitResize}
+          onDoubleClick={() => setSplitRatio(58)}
+          title="Drag horizontally to resize 3D Chamber vs Inspector Console width (double-click to reset)"
+          className="hidden lg:flex w-4 shrink-0 self-stretch cursor-col-resize items-center justify-center group select-none"
+        >
+          <div
+            className={`w-1.5 h-24 rounded-full flex items-center justify-center transition-all ${
+              isDraggingSplit
+                ? 'bg-cyan-400 h-36 shadow-md shadow-cyan-500/30'
+                : isLightMode
+                  ? 'bg-slate-200 group-hover:bg-cyan-500/60 group-hover:h-32'
+                  : 'bg-slate-800 group-hover:bg-cyan-400/60 group-hover:h-32'
+            }`}
+          >
+            <GripVertical
+              className={`w-3.5 h-3.5 ${
+                isDraggingSplit
+                  ? 'text-slate-950'
+                  : isLightMode
+                    ? 'text-slate-500 group-hover:text-white'
+                    : 'text-slate-400 group-hover:text-slate-950'
+              }`}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Right Resizable Pane: Multi-Mode Command & Telemetry Inspector Console */}
+      {!isInspectorCollapsed && (
+        <div
+          className={`w-full lg:w-[var(--right-split)] lg:flex-1 min-w-0 rounded-xl border overflow-hidden flex flex-col ${
+            isLightMode
+              ? 'bg-white border-slate-200 text-slate-900 shadow-sm'
+              : 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-xl'
+          }`}
+        >
         {/* 3-Tab Command Console Switcher */}
         <div
           className={`grid grid-cols-3 border-b p-1.5 gap-1.5 ${
@@ -2574,7 +3886,8 @@ export const ForensicRoomViewport: React.FC<ForensicRoomViewportProps> = ({
             </div>
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

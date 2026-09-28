@@ -98,7 +98,8 @@ export default function App() {
   // Simulation Clock & Environmental Variables
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [simSpeed, setSimSpeed] = useState<1 | 2 | 5>(1);
-  const [simDay, setSimDay] = useState<number>(4.0);
+  const [simDay, setSimDay] = useState<number>(2.5);
+  const [diurnalCycle, setDiurnalCycle] = useState<boolean>(true);
   const [params, setParams] = useState<EnvironmentalParams>(
     ENVIRONMENTAL_PRESETS[0].params
   );
@@ -179,23 +180,48 @@ export default function App() {
     quizSubmitted,
   ]);
 
-  // Real-time Simulation Clock Loop when Active
+  // Real-time High-Resolution Biophysical Simulation Clock Loop when Active
   useEffect(() => {
     if (!isRunning) return;
     const interval = setInterval(() => {
       setSimDay((prev) => {
-        const next = prev + 0.1 * simSpeed;
+        const next = prev + 0.05 * simSpeed;
         if (next >= 30) {
           setIsRunning(false);
           return 30;
         }
-        return Number(next.toFixed(1));
+        return Number(next.toFixed(2));
       });
-    }, 350);
+    }, 140);
     return () => clearInterval(interval);
   }, [isRunning, simSpeed]);
 
-  const metrics = computeSimulationMetrics(params, simDay);
+  // Apply Baguio 1,540m ASL diurnal micro-climate cycle (±2.1°C & ±5% RH across each 24h cycle) when enabled
+  const effectiveParams: EnvironmentalParams = diurnalCycle
+    ? {
+        ...params,
+        temperature: Number(
+          Math.max(
+            5,
+            Math.min(
+              38,
+              params.temperature + Math.sin(simDay * Math.PI * 2 - 1.2) * 2.1
+            )
+          ).toFixed(1)
+        ),
+        humidity: Math.round(
+          Math.max(
+            20,
+            Math.min(
+              98,
+              params.humidity - Math.sin(simDay * Math.PI * 2 - 1.2) * 5
+            )
+          )
+        ),
+      }
+    : params;
+
+  const metrics = computeSimulationMetrics(effectiveParams, simDay);
 
   const handleSelectRoomObject = (obj: RoomObjectInfo) => {
     setSelectedRoomObject(obj);
@@ -298,7 +324,7 @@ export default function App() {
     >
       {/* TOP BAR CONTRACT: Strictly 1 row, 3 zones (Brand Wordmark | Clean Nav Links | Primary Actions) */}
       <header
-        className={`sticky top-0 z-40 flex items-center justify-between px-4 sm:px-8 py-4 border-b backdrop-blur-md ${
+        className={`sticky top-0 z-40 flex items-center justify-between gap-3 px-3 sm:px-6 lg:px-8 py-3.5 border-b backdrop-blur-md ${
           isLightMode
             ? 'bg-white/95 border-slate-200'
             : 'bg-[#070B14]/95 border-slate-800'
@@ -313,7 +339,7 @@ export default function App() {
           }}
           className="text-lg font-display font-semibold tracking-tight whitespace-nowrap"
         >
-          Cordillera Forensic Lab
+          ForenSim.io
         </a>
 
         {/* Zone 2: Clean text navigation links */}
@@ -342,12 +368,12 @@ export default function App() {
         </nav>
 
         {/* Zone 3: 1-2 primary actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={() => setIsLightMode((prev) => !prev)}
             title="Toggle Dark / Light Laboratory Interface"
-            className={`px-3.5 py-2 rounded-lg border text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+            className={`px-2.5 sm:px-3.5 py-2 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
               isLightMode
                 ? 'bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200'
                 : 'bg-slate-900 border-slate-800 text-slate-200 hover:border-slate-700'
@@ -355,13 +381,13 @@ export default function App() {
           >
             {isLightMode ? (
               <>
-                <Moon className="w-4 h-4 text-slate-700" />
-                <span>Dark Theme</span>
+                <Moon className="w-4 h-4 text-slate-700 shrink-0" />
+                <span className="hidden sm:inline">Dark Theme</span>
               </>
             ) : (
               <>
-                <Sun className="w-4 h-4 text-amber-400" />
-                <span>Light Theme</span>
+                <Sun className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="hidden sm:inline">Light Theme</span>
               </>
             )}
           </button>
@@ -369,9 +395,10 @@ export default function App() {
           <button
             type="button"
             onClick={() => setActiveTab('reports')}
-            className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-xs font-semibold hover:bg-cyan-400 transition-colors whitespace-nowrap shadow-sm"
+            className="px-3 sm:px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-xs font-semibold hover:bg-cyan-400 transition-colors whitespace-nowrap shadow-sm"
           >
-            Baguio Case Scenario
+            <span className="sm:hidden">Case Study</span>
+            <span className="hidden sm:inline">Baguio Case Scenario</span>
           </button>
         </div>
       </header>
@@ -404,13 +431,13 @@ export default function App() {
 
       {/* STICKY SIMULATION PLAYBACK & STAGE TIMELINE BAR */}
       <div
-        className={`sticky top-[65px] z-30 border-b px-4 sm:px-8 py-3 backdrop-blur-md ${
+        className={`sticky top-[61px] z-30 border-b px-3 sm:px-6 lg:px-8 py-2.5 backdrop-blur-md ${
           isLightMode
             ? 'bg-white/95 border-slate-200 text-slate-800 shadow-xs'
             : 'bg-[#0B1120]/95 border-slate-800 text-slate-200'
         }`}
       >
-        <div className="max-w-[1400px] mx-auto flex flex-wrap items-center justify-between gap-4">
+        <div className="max-w-[1680px] mx-auto flex flex-wrap items-center justify-between gap-3 sm:gap-4">
           {/* Left: Simulation Playback & Scrubber */}
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -491,6 +518,22 @@ export default function App() {
               </button>
               <button
                 type="button"
+                onClick={() => setDiurnalCycle((d) => !d)}
+                title="Toggle 24-Hour Baguio Highland Diurnal Temperature & Humidity Oscillation"
+                className={`px-2.5 py-1.5 rounded-lg border font-semibold transition-colors whitespace-nowrap ${
+                  diurnalCycle
+                    ? isLightMode
+                      ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+                      : 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300'
+                    : isLightMode
+                      ? 'border-slate-300 bg-slate-50 text-slate-600'
+                      : 'border-slate-700 bg-slate-900 text-slate-400'
+                }`}
+              >
+                Diurnal: {diurnalCycle ? 'ON' : 'OFF'}
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   setIsRunning(false);
                   setSimDay(0);
@@ -520,7 +563,7 @@ export default function App() {
                 aria-label="Simulation Day Scrubber"
                 min={0}
                 max={30}
-                step={0.5}
+                step={0.1}
                 value={simDay}
                 onChange={(e) => setSimDay(parseFloat(e.target.value))}
                 className="w-28 sm:w-36 cursor-pointer h-2 rounded-lg"
@@ -599,7 +642,7 @@ export default function App() {
       </div>
 
       {/* MAIN WORKSPACE CONTAINER */}
-      <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-8 py-6 space-y-6">
+      <main className="flex-1 max-w-[1680px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6">
         {/* Clean Facility Context & Progress Header */}
         <div
           className={`pb-5 border-b flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${
@@ -719,9 +762,9 @@ export default function App() {
         {/* VIEW 1: MAIN DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            {/* Key Simulation Metrics Strip (Clean 4-Column Summary) */}
+            {/* Key Simulation Metrics Strip (Clean 4-Column Biophysical Summary) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Card 1: Elapsed Time & Thermal Sum */}
+              {/* Card 1: Elapsed Time, Thermal Sum & Algor Mortis Core Temp */}
               <div
                 className={`p-5 rounded-xl border ${
                   isLightMode
@@ -734,7 +777,7 @@ export default function App() {
                     isLightMode ? 'text-slate-500' : 'text-slate-400'
                   }`}
                 >
-                  Elapsed Simulation Time
+                  Elapsed PMI & Henssge Core Temp
                 </div>
                 <div className="mt-1.5 flex items-baseline justify-between font-mono tabular-nums">
                   <div>
@@ -758,18 +801,21 @@ export default function App() {
                   </span>
                 </div>
                 <div
-                  className={`mt-3 pt-2.5 border-t text-xs flex justify-between ${
+                  className={`mt-3 pt-2.5 border-t text-xs flex justify-between font-mono ${
                     isLightMode
                       ? 'border-slate-100 text-slate-500'
                       : 'border-slate-800/70 text-slate-400'
                   }`}
                 >
-                  <span>Thermal Unit Sum</span>
-                  <span className="font-mono">{metrics.add} °C·days</span>
+                  <span>Core: {metrics.coreBodyTempC}°C</span>
+                  <span>
+                    ΔT: {metrics.algorMortisDeltaC >= 0 ? '+' : ''}
+                    {metrics.algorMortisDeltaC}°C
+                  </span>
                 </div>
               </div>
 
-              {/* Card 2: Chamber Climate */}
+              {/* Card 2: Chamber Micro-Climate & Rigor/Livor Kinetics */}
               <div
                 className={`p-5 rounded-xl border ${
                   isLightMode
@@ -782,7 +828,7 @@ export default function App() {
                     isLightMode ? 'text-slate-500' : 'text-slate-400'
                   }`}
                 >
-                  Chamber Micro-Climate
+                  Micro-Climate & Rigor / Livor Kinetics
                 </div>
                 <div className="mt-1.5 flex items-baseline justify-between font-mono tabular-nums">
                   <div>
@@ -791,7 +837,7 @@ export default function App() {
                         isLightMode ? 'text-emerald-700' : 'text-emerald-400'
                       }`}
                     >
-                      {params.temperature.toFixed(1)}°C
+                      {effectiveParams.temperature.toFixed(1)}°C
                     </span>
                     <span className="mx-2 text-slate-400">·</span>
                     <span
@@ -799,9 +845,12 @@ export default function App() {
                         isLightMode ? 'text-cyan-700' : 'text-cyan-400'
                       }`}
                     >
-                      {params.humidity}% RH
+                      {effectiveParams.humidity}% RH
                     </span>
                   </div>
+                  <span className="text-xs text-slate-400">
+                    Q₁₀: {metrics.q10Multiplier}x
+                  </span>
                 </div>
                 <div
                   className={`mt-3 pt-2.5 border-t text-xs flex justify-between font-mono ${
@@ -810,12 +859,12 @@ export default function App() {
                       : 'border-slate-800/70 text-slate-400'
                   }`}
                 >
-                  <span>Airflow: {params.airflow.toFixed(2)} m/s</span>
-                  <span>Q₁₀: {metrics.q10Multiplier}x</span>
+                  <span>Rigor: {metrics.rigorMortisPercent}%</span>
+                  <span>Livor Fixation: {metrics.livorMortisFixationPercent}%</span>
                 </div>
               </div>
 
-              {/* Card 3: Active Decomposition Stage */}
+              {/* Card 3: Active Decomposition Stage & Megyesi TBS */}
               <div
                 className={`p-5 rounded-xl border ${
                   isLightMode
@@ -823,12 +872,21 @@ export default function App() {
                     : 'bg-[#0F172A] border-slate-800'
                 }`}
               >
-                <div
-                  className={`text-xs font-medium ${
-                    isLightMode ? 'text-slate-500' : 'text-slate-400'
-                  }`}
-                >
-                  Current Biological Stage
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`text-xs font-medium ${
+                      isLightMode ? 'text-slate-500' : 'text-slate-400'
+                    }`}
+                  >
+                    Biological Stage & Megyesi TBS
+                  </span>
+                  <span
+                    className={`text-xs font-mono font-semibold ${
+                      isLightMode ? 'text-cyan-700' : 'text-cyan-400'
+                    }`}
+                  >
+                    TBS {metrics.megyesiTbs}/35
+                  </span>
                 </div>
                 <div className="mt-1.5">
                   <div
@@ -856,7 +914,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Card 4: Tissue Mass & VOC Telemetry */}
+              {/* Card 4: Tissue Mass, Gas Pressure, Purge & VOC Telemetry */}
               <div
                 className={`p-5 rounded-xl border ${
                   isLightMode
@@ -869,7 +927,7 @@ export default function App() {
                     isLightMode ? 'text-slate-500' : 'text-slate-400'
                   }`}
                 >
-                  Biomass & Headspace VOC
+                  Biomass, Gas Pressure & Purge Exudate
                 </div>
                 <div className="mt-1.5 flex items-baseline justify-between font-mono tabular-nums">
                   <span
@@ -884,7 +942,7 @@ export default function App() {
                       isLightMode ? 'text-cyan-700' : 'text-cyan-400'
                     }`}
                   >
-                    {metrics.vocPpm} ppm
+                    {metrics.vocPpm} ppm VOC
                   </span>
                 </div>
                 <div
@@ -894,8 +952,8 @@ export default function App() {
                       : 'border-slate-800/70 text-slate-400'
                   }`}
                 >
-                  <span>Matrix pH: {metrics.matrixPh}</span>
-                  <span>Adipocere: {metrics.adipocerePotential}%</span>
+                  <span>Gas: +{metrics.gasPressureKpa} kPa</span>
+                  <span>Purge: {metrics.purgeFluidMl} mL</span>
                 </div>
               </div>
             </div>
