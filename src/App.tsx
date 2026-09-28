@@ -1194,8 +1194,8 @@ export default function App() {
       >
         <div className="max-w-[1380px] mx-auto flex flex-wrap items-center justify-between gap-4">
           <div>
-            Cordillera Forensic Simulation Laboratory · Baguio City, Philippines
-            · Simulation-Based Learning on Human Decomposition
+            ForenSim.io · Baguio City, Philippines · Simulation-Based Learning
+            on Human Decomposition
           </div>
           <div className="font-mono">
             Educational Simulation — Results are simplified models for learning
